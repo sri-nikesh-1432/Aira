@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,15 +118,22 @@ export default function WorkspacePage() {
     }
   }, [messages]);
 
-  const handleSend = async () => {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const handleSend = useCallback(() => {
     if (!input.trim() || isStreaming) return;
     const userMessage = input.trim();
     setInput("");
     addMessage({ role: "user", content: userMessage, agentId: activeAgent || undefined });
     setStreaming(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       if (activeAgent) {
         const response = getAgentResponse(activeAgent, userMessage);
         addMessage({ role: "assistant", content: response, agentId: activeAgent });
@@ -140,7 +147,7 @@ export default function WorkspacePage() {
       }
       setStreaming(false);
     }, 1500);
-  };
+  }, [input, isStreaming, activeAgent, addMessage, setStreaming]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -228,6 +235,8 @@ export default function WorkspacePage() {
             <Paperclip className="w-4 h-4 text-gray-400" />
           </Button>
           <Input
+            id="chat-input"
+            name="chat-message"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

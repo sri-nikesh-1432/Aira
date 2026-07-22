@@ -5,8 +5,10 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2, Sun } from "lucide-react";
 
 const HomePage = lazy(() => import("@/pages/HomePage"));
+const AiraPage = lazy(() => import("@/pages/AiraPage"));
 const WorkspacePage = lazy(() => import("@/pages/WorkspacePage"));
 const AgentsPage = lazy(() => import("@/pages/AgentsPage"));
+const AgentDetailPage = lazy(() => import("@/pages/AgentDetailPage"));
 const GeneratorPage = lazy(() => import("@/pages/GeneratorPage"));
 const ValidatorPage = lazy(() => import("@/pages/ValidatorPage"));
 const EvaluatorPage = lazy(() => import("@/pages/EvaluatorPage"));
@@ -36,8 +38,10 @@ function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/aira" element={<AiraPage />} />
               <Route path="/workspace" element={<WorkspacePage />} />
               <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/agent/:id" element={<AgentDetailPage />} />
               <Route path="/generator" element={<GeneratorPage />} />
               <Route path="/validator" element={<ValidatorPage />} />
               <Route path="/evaluator" element={<EvaluatorPage />} />

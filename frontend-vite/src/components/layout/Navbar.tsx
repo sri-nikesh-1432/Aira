@@ -3,21 +3,34 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Rocket, Sun } from "lucide-react";
+import { Menu, X, Rocket, Sun, ChevronDown } from "lucide-react";
 
-const navLinks = [
+const topLinks = [
   { href: "/", label: "Home" },
+  { href: "/aira", label: "AIRA Central" },
   { href: "/workspace", label: "Workspace" },
-  { href: "/agents", label: "Agents" },
+  { href: "/agents", label: "All Agents" },
   { href: "/generator", label: "Generator" },
   { href: "/validator", label: "Validator" },
-  { href: "/judge", label: "Judge Sim" },
-  { href: "/deploy", label: "Deploy" },
+];
+
+const agents = [
+  { href: "/agent/mercury", label: "☿ Mercury", desc: "Research" },
+  { href: "/agent/venus", label: "♀ Venus", desc: "Design" },
+  { href: "/agent/earth", label: "🌍 Earth", desc: "Development" },
+  { href: "/agent/mars", label: "♂ Mars", desc: "Architecture" },
+  { href: "/agent/jupiter", label: "♃ Jupiter", desc: "Business" },
+  { href: "/agent/saturn", label: "♄ Saturn", desc: "Documentation" },
+  { href: "/agent/uranus", label: "♅ Uranus", desc: "Evolution" },
+  { href: "/agent/neptune", label: "♆ Neptune", desc: "Testing" },
+  { href: "/agent/pluto", label: "🪐 Pluto", desc: "Deploy" },
+  { href: "/agent/luna", label: "🌑 Luna", desc: "Memory" },
 ];
 
 export function Navbar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [agentsOpen, setAgentsOpen] = useState(false);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
@@ -39,7 +52,7 @@ export function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
+            {topLinks.map((link) => {
               const isActive = location.pathname === link.href;
               return (
                 <Link key={link.href} to={link.href}>
@@ -58,13 +71,57 @@ export function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Agents Dropdown */}
+            <div className="relative"
+              onMouseEnter={() => setAgentsOpen(true)}
+              onMouseLeave={() => setAgentsOpen(false)}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "text-sm transition-all duration-200 gap-1",
+                  location.pathname.startsWith("/agent/")
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-gray-400 hover:text-white"
+                )}
+              >
+                Planets <ChevronDown className="w-3 h-3" />
+              </Button>
+              <AnimatePresence>
+                {agentsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute top-full right-0 mt-1 glass rounded-xl border border-white/10 overflow-hidden min-w-[200px] shadow-2xl"
+                  >
+                    {agents.map((agent) => (
+                      <Link
+                        key={agent.href}
+                        to={agent.href}
+                        onClick={() => setAgentsOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5",
+                          location.pathname === agent.href ? "text-primary bg-primary/5" : "text-gray-300"
+                        )}
+                      >
+                        <span>{agent.label}</span>
+                        <span className="text-[10px] text-gray-500 ml-auto">{agent.desc}</span>
+                      </Link>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/workspace">
-              <Button size="sm" className="gap-2">
-                <Rocket className="w-4 h-4" />
-                Launch Project
+            <Link to="/aira">
+              <Button size="sm" className="gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400">
+                <Sun className="w-4 h-4" />
+                Talk to AIRA
               </Button>
             </Link>
           </div>
@@ -87,7 +144,7 @@ export function Navbar() {
             className="md:hidden glass border-t border-white/5"
           >
             <div className="px-4 py-3 space-y-1">
-              {navLinks.map((link) => (
+              {topLinks.map((link) => (
                 <Link
                   key={link.href}
                   to={link.href}
@@ -102,10 +159,26 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <Link to="/workspace" onClick={() => setMobileOpen(false)}>
-                <Button className="w-full gap-2 mt-2">
-                  <Rocket className="w-4 h-4" />
-                  Launch Project
+              <div className="px-3 py-1 text-xs text-gray-600 font-medium">PLANETS</div>
+              {agents.map((agent) => (
+                <Link
+                  key={agent.href}
+                  to={agent.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "block px-3 py-2 rounded-lg text-sm transition-colors",
+                    location.pathname === agent.href
+                      ? "bg-primary/10 text-primary"
+                      : "text-gray-400 hover:text-white hover:bg-accent"
+                  )}
+                >
+                  {agent.label}
+                </Link>
+              ))}
+              <Link to="/aira" onClick={() => setMobileOpen(false)}>
+                <Button className="w-full gap-2 mt-2 bg-gradient-to-r from-yellow-500 to-orange-500">
+                  <Sun className="w-4 h-4" />
+                  Talk to AIRA
                 </Button>
               </Link>
             </div>

@@ -9,6 +9,7 @@ import ValidatorPage from "@/pages/ValidatorPage";
 import EvaluatorPage from "@/pages/EvaluatorPage";
 import JudgePage from "@/pages/JudgePage";
 import DeployPage from "@/pages/DeployPage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/evaluator" element={<EvaluatorPage />} />
           <Route path="/judge" element={<JudgePage />} />
           <Route path="/deploy" element={<DeployPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </Router>

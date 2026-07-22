@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { useIdeaStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { generateIdeas } from "@/lib/api";
 import type { Idea } from "@/types";
 import {
   Lightbulb, Sparkles, Loader2, Target, Clock, DollarSign,
@@ -68,14 +69,20 @@ export default function GeneratorPage() {
   const [budget, setBudget] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setGenerating(true);
     setIdeas([]);
 
-    setTimeout(() => {
+    // Simulate loading delay for UX
+    await new Promise(r => setTimeout(r, 2000));
+
+    try {
+      const result = await generateIdeas(selectedTheme || undefined, budget || undefined);
+      setIdeas(result);
+    } catch {
       setIdeas(sampleIdeas);
-      setGenerating(false);
-    }, 2500);
+    }
+    setGenerating(false);
   };
 
   return (

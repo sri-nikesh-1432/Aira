@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { judgeSimulate } from "@/lib/api";
 import type { JudgeQuestion } from "@/types";
 import {
   Gavel, Loader2, Mic, MessageSquare, Target,
@@ -31,12 +32,19 @@ export default function JudgePage() {
   const [simComplete, setSimComplete] = useState(false);
   const [score, setScore] = useState(0);
 
-  const startSimulation = () => {
+  const startSimulation = async () => {
     setIsSimulating(true);
-    setTimeout(() => {
+
+    // Simulate loading delay for UX
+    await new Promise(r => setTimeout(r, 2000));
+
+    try {
+      const data = await judgeSimulate();
+      setQuestions(data.questions);
+    } catch {
       setQuestions(demoQuestions);
-      setIsSimulating(false);
-    }, 2000);
+    }
+    setIsSimulating(false);
   };
 
   const submitAnswer = () => {

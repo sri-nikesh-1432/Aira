@@ -24,31 +24,6 @@ const validationCategories = [
   { key: "costEffectiveness", label: "Cost Effectiveness", icon: Zap, color: "#f97316" },
 ];
 
-const demoValidation = {
-  score: {
-    novelty: 85, technicalFeasibility: 92, businessFeasibility: 88,
-    msmeCompliance: 95, scalability: 82, costEffectiveness: 90, overall: 87,
-  },
-  feedback: [
-    "Strong alignment with MSME innovation priorities",
-    "High technical feasibility with proven technology stack",
-    "Clear market demand with growing TAM",
-    "Well-defined problem statement and solution approach",
-  ],
-  recommendations: [
-    "File a provisional patent to protect the core innovation",
-    "Build MVP within 4 weeks for early user testing",
-    "Prepare for Stage 1 evaluation with MSME guidelines",
-    "Engage with potential pilot customers immediately",
-  ],
-  risks: [
-    { level: "low", text: "Market timing is favorable for this solution" },
-    { level: "medium", text: "Competition exists but differentiation is clear" },
-    { level: "low", text: "Technology risk is minimal with current stack" },
-    { level: "high", text: "User adoption may require initial training investment" },
-  ],
-};
-
 export default function ValidatorPage() {
   const { scores, feedback, recommendations, risks, setScores, setFeedback, setRecommendations, setRisks, reset } = useValidationStore();
   const [idea, setIdea] = useState("");

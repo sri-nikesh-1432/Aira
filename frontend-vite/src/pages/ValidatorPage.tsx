@@ -34,9 +34,6 @@ export default function ValidatorPage() {
     if (!idea.trim()) return;
     setIsValidating(true);
 
-    // Simulate loading delay for UX
-    await new Promise(r => setTimeout(r, 2000));
-
     try {
       const data = await validateIdea(idea, guidelines || undefined);
       setScores({

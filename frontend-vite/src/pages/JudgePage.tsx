@@ -35,9 +35,6 @@ export default function JudgePage() {
   const startSimulation = async () => {
     setIsSimulating(true);
 
-    // Simulate loading delay for UX
-    await new Promise(r => setTimeout(r, 2000));
-
     try {
       const data = await judgeSimulate();
       setQuestions(data.questions);

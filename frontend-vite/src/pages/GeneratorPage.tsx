@@ -73,9 +73,6 @@ export default function GeneratorPage() {
     setGenerating(true);
     setIdeas([]);
 
-    // Simulate loading delay for UX
-    await new Promise(r => setTimeout(r, 2000));
-
     try {
       const result = await generateIdeas(selectedTheme || undefined, budget || undefined);
       setIdeas(result);

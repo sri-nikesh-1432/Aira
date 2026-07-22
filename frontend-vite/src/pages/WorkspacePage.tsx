@@ -124,7 +124,6 @@ export default function WorkspacePage() {
   const isMountedRef = useRef(true);
 
   useEffect(() => {
-    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -137,6 +136,8 @@ export default function WorkspacePage() {
     setInput("");
     setError(null);
 
+    if (!isMountedRef.current) return;
+
     addMessage({
       role: "user",
       content: userMessage,
@@ -145,18 +146,20 @@ export default function WorkspacePage() {
 
     setStreaming(true);
 
-    // Try API first, fallback to mock with timeout cleanup
     const timeout = 1500;
     timeoutRef.current = setTimeout(async () => {
+      if (!isMountedRef.current) return;
+
       try {
         const response = await sendChatMessage(userMessage, activeAgent || undefined);
+        if (!isMountedRef.current) return;
         addMessage({
           role: "assistant",
           content: response.content,
           agentId: (response.agent_id as AgentType) || activeAgent || undefined,
         });
-      } catch (err) {
-        // Final fallback to mock
+      } catch {
+        if (!isMountedRef.current) return;
         const fallbackContent = activeAgent
           ? getAgentResponse(activeAgent, userMessage)
           : `☀️ AIRA Core orchestrating your request...\n\nI've analyzed your input through our multi-agent pipeline:\n\n${getAgentResponse("mercury", userMessage)}\n\nWould you like me to dive deeper with any specific agent?`;
@@ -170,7 +173,7 @@ export default function WorkspacePage() {
       if (isMountedRef.current) {
         setStreaming(false);
       }
-    }, Math.min(timeout, 1500));
+    }, timeout);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

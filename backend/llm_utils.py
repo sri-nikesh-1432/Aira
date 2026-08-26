@@ -25,16 +25,16 @@ import random
 import time
 
 # Hard timeout per LLM call (seconds) — AIRA must never hang waiting on a model.
-LLM_TIMEOUT_SECONDS = 90
+LLM_TIMEOUT_SECONDS = 45
 
 # Retry policy — exponential backoff with jitter for transient failures.
-RETRY_ATTEMPTS = 5
+RETRY_ATTEMPTS = 3
 RETRY_BASE_DELAY = 2.0   # seconds; doubles each attempt
-RETRY_MAX_DELAY = 30.0
+RETRY_MAX_DELAY = 10.0
 
 # Minimum gap between the START of two LLM calls (keeps bursts under the
 # free-tier per-minute request window, e.g. ~10–20 req/min).
-MIN_CALL_INTERVAL = 3.0
+MIN_CALL_INTERVAL = 2.0
 
 # The model available on this account
 DEFAULT_MODEL = "gemini-2.5-flash"
@@ -48,11 +48,11 @@ RETRY_HINT_RE = re.compile(r"please retry in ([\d.]+)\s*s", re.IGNORECASE)
 
 # A retry hint longer than this means the daily quota (hours away), not a
 # transient window — fail fast instead of sleeping forever.
-MAX_TRANSIENT_RETRY_DELAY = 300.0  # 5 minutes
+MAX_TRANSIENT_RETRY_DELAY = 30.0  # cap the Google 'retry in Xs' hint at 30s max
 
 # Once the daily quota error is seen (no short retry hint), calls fail fast
 # for this window, then one call retries the API (quota may have reset).
-DAILY_QUOTA_COOLDOWN = 300  # 5 minutes
+DAILY_QUOTA_COOLDOWN = 60  # 1 minute cooldown before trying again
 _DAILY_QUOTA_SINCE: float | None = None  # time.monotonic() timestamp
 
 # Global serialization + spacing so missions stay within the per-minute window.
@@ -173,7 +173,7 @@ async def llm_call(system_prompt: str, user_prompt: str, temperature: float = 0.
                 # per-minute window); otherwise exponential backoff + jitter.
                 hint = _retry_hint(e)
                 if hint is not None:
-                    delay = min(RETRY_MAX_DELAY, hint + 1.0) * (0.9 + 0.2 * random.random())
+                    delay = min(RETRY_MAX_DELAY, min(hint, MAX_TRANSIENT_RETRY_DELAY) + 1.0) * (0.9 + 0.2 * random.random())
                 else:
                     delay = min(RETRY_MAX_DELAY, RETRY_BASE_DELAY * (2 ** attempt)) * (0.5 + random.random())
                 await asyncio.sleep(delay)

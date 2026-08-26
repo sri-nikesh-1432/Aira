@@ -1,0 +1,180 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #0A0A14;
+  color: #F8FAFC;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0A0A14; }
+::-webkit-scrollbar-thumb { background: #6366F1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #818CF8; }
+
+/* ─── Selection ─────────────────────────────────────────────────────────────── */
+::selection { background: rgba(99, 102, 241, 0.3); }
+
+/* ─── Utility classes ───────────────────────────────────────────────────────── */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .glow-text-primary {
+    text-shadow: 0 0 20px rgba(99, 102, 241, 0.8);
+  }
+
+  .glow-text-gold {
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, #6366F1, #818CF8);
+  }
+
+  .gradient-aira {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+  }
+
+  .noise-bg {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+  }
+
+  .space-bg {
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+      #0A0A14;
+  }
+
+  .planet-orbit {
+    animation: orbitPath 20s linear infinite;
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #6366F1, #818CF8, #10B981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ─── Components ────────────────────────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200
+           hover:scale-105 hover:shadow-glow-primary active:scale-95;
+    background: linear-gradient(135deg, #6366F1, #4F46E5);
+  }
+
+  .btn-ghost {
+    @apply px-6 py-3 rounded-xl font-medium text-text-secondary
+           hover:text-white hover:bg-surface-2 transition-all duration-200;
+  }
+
+  .card {
+    @apply rounded-2xl p-6 glass border border-border;
+  }
+
+  .card-hover {
+    @apply card hover:border-primary/30 hover:shadow-card-hover transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-surface-2 border border-border
+           text-white placeholder-text-muted outline-none
+           focus:border-primary focus:ring-1 focus:ring-primary/30
+           transition-all duration-200;
+  }
+
+  .label {
+    @apply text-sm font-medium text-text-secondary mb-2 block;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary
+           hover:text-white hover:bg-surface-2 transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-link-active {
+    @apply sidebar-link text-white bg-primary/10 border border-primary/20;
+  }
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────────── */
+@keyframes orbitPath {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes dataStream {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* ─── Planet status colors ──────────────────────────────────────────────────── */
+.status-idle    { @apply text-text-muted; }
+.status-active  { @apply text-primary; }
+.status-completed { @apply text-secondary; }
+.status-error   { @apply text-error; }
+.status-waiting { @apply text-warning; }
+
+/* ─── Code blocks ───────────────────────────────────────────────────────────── */
+pre {
+  border-radius: 0.75rem;
+  padding: 1rem;
+  overflow-x: auto;
+  background: #12121F !important;
+  border: 1px solid #1E2340;
+}
+
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+}
+
+/* Inline code */
+:not(pre) > code {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818CF8;
+  padding: 0.1em 0.4em;
+  border-radius: 0.3em;
+}

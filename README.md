@@ -21,66 +21,6 @@ Copyright © 2026 Sri D. All rights reserved.
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- Python 3.11+
-- A free [Google Gemini API key](https://aistudio.google.com)
-
-### 1. Clone & Setup
-
-```bash
-git clone <repo>
-cd "Aira kiro"
-```
-
-### 2. Backend Setup
-
-```bash
-cd backend
-
-# Create .env from template
-copy .env.example .env
-# Edit .env — add your GEMINI_API_KEY
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start backend
-uvicorn main:app --reload --port 8000
-```
-
-Backend runs at: http://localhost:8000
-API Docs at: http://localhost:8000/docs
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start frontend
-npm run dev
-```
-
-Frontend runs at: http://localhost:3000
-
-### 4. Or use Docker
-
-```bash
-# Copy env file
-copy backend\.env.example backend\.env
-# Add GEMINI_API_KEY to backend/.env
-
-# Start everything
-docker-compose up --build
-```
-
----
-
 ## 📋 How It Works
 
 ```
@@ -144,19 +84,7 @@ Aira kiro/
 └── README.md
 ```
 
----
 
-## 🔑 Environment Variables
-
-```env
-# backend/.env
-GEMINI_API_KEY=your_key_here        # Required - get free at aistudio.google.com
-TAVILY_API_KEY=your_key_here        # Optional - for web search
-DEBUG=true
-CORS_ORIGINS=http://localhost:3000
-```
-
----
 
 ## 🎯 Key Features
 
@@ -204,4 +132,4 @@ The **full AIRA OS roadmap** expands to a 10-planet ecosystem:
 ---
 
 *Built with AIRA OS — "I don't solve problems alone. I orchestrate intelligence."*
-*© 2026 Sri D. All rights reserved.*
+

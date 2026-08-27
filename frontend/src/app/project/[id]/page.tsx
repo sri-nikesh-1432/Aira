@@ -9,14 +9,13 @@ import {
   ChevronRight, ChevronDown, Copy, ExternalLink,
   Monitor, Terminal, FolderOpen, FolderClosed,
   RefreshCw, Play, Maximize2, X, File,
-  Archive, Check, Loader2, Eye, Globe
+  Archive, Check, Loader2, Eye, Globe, Zap,
 } from 'lucide-react'
 import { SolarSystem } from '@/components/planets/SolarSystem'
 import { PlanetCard } from '@/components/planets/PlanetCard'
 import { PLANETS, type PlanetId, type PlanetStatus, type Project, type StreamEvent } from '@/types'
 import { getProject, streamProject, startPreview, getPreviewStatus, stopPreview, api } from '@/lib/api'
 import { clsx } from 'clsx'
-import ReactMarkdown from 'react-markdown'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -59,27 +58,6 @@ function buildTree(files: FileNode[]): FileNode[] {
   return root
 }
 
-// ─── Language detector ───────────────────────────────────────────────────────
-function getLang(ext: string): string {
-  const map: Record<string, string> = {
-    '.ts': 'typescript', '.tsx': 'typescript', '.js': 'javascript', '.jsx': 'javascript',
-    '.py': 'python', '.md': 'markdown', '.json': 'json', '.yml': 'yaml', '.yaml': 'yaml',
-    '.css': 'css', '.html': 'html', '.sh': 'bash', '.env': 'bash', '.txt': 'text',
-    '.sql': 'sql', '.dockerfile': 'dockerfile', '.toml': 'toml', '.rs': 'rust',
-  }
-  return map[ext.toLowerCase()] || 'text'
-}
-
-const PLANET_COLORS: Record<string, string> = {
-  aira: '#FFD700', mercury: '#B5A9A9', mars: '#CF4B2B', venus: '#E8B86D',
-  earth: '#4B9CD3', jupiter: '#C8A951', saturn: '#A89070',
-  neptune: '#4B7BE8', uranus: '#7EC8C8', pluto: '#9B8EAE'
-}
-const PLANET_SYMBOLS: Record<string, string> = {
-  aira: '☀️', mercury: '☿', mars: '♂', venus: '♀', earth: '🌍',
-  jupiter: '♃', saturn: '♄', neptune: '♆', uranus: '♅', pluto: '🪐'
-}
-
 // ─── File Tree Node ───────────────────────────────────────────────────────────
 function TreeNode({ node, depth, selected, onSelect }: {
   node: FileNode
@@ -94,12 +72,12 @@ function TreeNode({ node, depth, selected, onSelect }: {
       <div>
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded hover:bg-white/5 text-xs text-slate-400 hover:text-white transition-colors"
-          style={{ paddingLeft: `${8 + depth * 12}px` }}
+          className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded transition-colors hover:bg-white/[0.04]"
+          style={{ paddingLeft: `${8 + depth * 12}px`, color: '#71717A' }}
         >
           {open ? <ChevronDown className="w-3 h-3 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 flex-shrink-0" />}
           {open ? <FolderOpen className="w-3 h-3 flex-shrink-0 text-yellow-400" /> : <FolderClosed className="w-3 h-3 flex-shrink-0 text-yellow-400" />}
-          <span className="truncate">{node.name}</span>
+          <span className="truncate text-xs">{node.name}</span>
         </button>
         {open && node.children?.map((child, i) => (
           <TreeNode key={i} node={child} depth={depth + 1} selected={selected} onSelect={onSelect} />
@@ -114,14 +92,24 @@ function TreeNode({ node, depth, selected, onSelect }: {
       onClick={() => onSelect(node)}
       className={clsx(
         'flex items-center gap-1.5 w-full text-left px-2 py-1 rounded text-xs transition-colors',
-        isSelected ? 'bg-primary/20 text-primary' : 'text-slate-400 hover:text-white hover:bg-white/5'
+        isSelected ? 'bg-primary/20 text-primary' : 'hover:text-white hover:bg-white/[0.04]'
       )}
-      style={{ paddingLeft: `${8 + depth * 12}px` }}
+      style={{ paddingLeft: `${8 + depth * 12}px`, color: isSelected ? undefined : '#71717A' }}
     >
       <File className="w-3 h-3 flex-shrink-0 opacity-60" />
       <span className="truncate">{node.name}</span>
     </button>
   )
+}
+
+const PLANET_COLORS: Record<string, string> = {
+  aira: '#FFD700', mercury: '#B5A9A9', mars: '#CF4B2B', venus: '#E8B86D',
+  earth: '#4B9CD3', jupiter: '#C8A951', saturn: '#A89070',
+  neptune: '#4B7BE8', uranus: '#7EC8C8', pluto: '#9B8EAE'
+}
+const PLANET_SYMBOLS: Record<string, string> = {
+  aira: '☀️', mercury: '☿', mars: '♂', venus: '♀', earth: '🌍',
+  jupiter: '♃', saturn: '♄', neptune: '♆', uranus: '♅', pluto: '🪐'
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -255,21 +243,15 @@ export default function ProjectWorkspacePage() {
   const downloadAll = async () => {
     setDownloadingZip(true)
     addTerminalLine('$ Creating project archive...')
-    // Trigger browser download of each key file
-    for (const f of files.slice(0, 20)) {
-      try {
-        const url = `${API}/api/projects/${projectId}/download/${encodeURIComponent(f.path)}`
-        const a = document.createElement('a')
-        a.href = url
-        a.download = f.name
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        await new Promise(r => setTimeout(r, 200))
-      } catch {}
-    }
+    const url = `${API}/api/projects/${projectId}/download-zip`
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `AIRA-project-${projectId.slice(0, 8)}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
     setDownloadingZip(false)
-    addTerminalLine('$ Download complete')
+    addTerminalLine('$ Download started')
   }
 
   // Boot the generated product as a live preview
@@ -293,7 +275,7 @@ export default function ProjectWorkspacePage() {
         return
       }
 
-      // Poll until ready (npm install can take a few minutes)
+      // Poll until ready
       const poll = setInterval(async () => {
         try {
           const st = await getPreviewStatus(projectId)
@@ -324,9 +306,7 @@ export default function ProjectWorkspacePage() {
   }
 
   const handleStopPreview = async () => {
-    try {
-      await stopPreview(projectId)
-    } catch {}
+    try { await stopPreview(projectId) } catch {}
     setPreviewState('idle')
     setPreviewUrl(null)
     setPreviewBackendUrl(null)
@@ -336,10 +316,10 @@ export default function ProjectWorkspacePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center space-bg">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090B' }}>
         <div className="text-center">
           <div className="w-16 h-16 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading project...</p>
+          <p style={{ color: '#71717A' }}>Loading project...</p>
         </div>
       </div>
     )
@@ -347,9 +327,9 @@ export default function ProjectWorkspacePage() {
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090B' }}>
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" style={{ color: '#EF4444' }} />
           <p className="text-lg font-semibold">Project not found</p>
           <button onClick={() => router.push('/dashboard')} className="btn-ghost mt-4">Back</button>
         </div>
@@ -376,25 +356,26 @@ export default function ProjectWorkspacePage() {
   ]
 
   return (
-    <div className="min-h-screen space-bg flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: '#09090B' }}>
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-6 py-3 border-b border-border glass-strong sticky top-0 z-30">
-        <button onClick={() => router.push('/dashboard')} className="p-2 rounded-lg hover:bg-surface-2 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-slate-400" />
+      <header className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30"
+              style={{ background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <button onClick={() => router.push('/dashboard')}
+                className="p-2 rounded-lg hover:bg-white/[0.05] transition-colors" style={{ color: '#71717A' }}>
+          <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-bold text-base truncate">
             {project.final_output?.project_title || project.request?.idea?.slice(0, 60) || 'AI Project'}
           </h1>
-          <p className="text-xs text-slate-500 truncate">{project.request?.idea}</p>
+          <p className="text-xs truncate" style={{ color: '#52525B' }}>{project.request?.idea}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={clsx(
-            'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium',
-            isRunning   && 'bg-primary/10 text-primary',
-            isCompleted && 'bg-secondary/10 text-secondary',
-            project.status === 'failed' && 'bg-error/10 text-error'
-          )}>
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
+                style={{
+                  background: isRunning ? 'rgba(99,102,241,0.1)' : isCompleted ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                  color: isRunning ? '#6366F1' : isCompleted ? '#10B981' : '#EF4444',
+                }}>
             {isRunning   && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
             {isCompleted && <CheckCircle className="w-3 h-3" />}
             {isRunning ? 'Running' : isCompleted ? 'Complete' : project.status}
@@ -404,7 +385,8 @@ export default function ProjectWorkspacePage() {
               <button
                 onClick={launchPreview}
                 disabled={previewState === 'starting'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-medium transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}
                 title="Boot the generated app and open it in your browser"
               >
                 {previewState === 'starting'
@@ -417,13 +399,10 @@ export default function ProjectWorkspacePage() {
                   : 'Live Preview'}
               </button>
               {previewUrl && previewState === 'ready' && (
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-white/10 text-white text-xs font-medium transition-all"
-                  title="Open the generated app in a new tab"
-                >
+                <a href={previewUrl} target="_blank" rel="noopener noreferrer"
+                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-white/[0.08]"
+                   style={{ background: 'rgba(255,255,255,0.05)', color: '#FAFAFA' }}
+                   title="Open the generated app in a new tab">
                   <ExternalLink className="w-3 h-3" />
                   Open
                 </a>
@@ -431,10 +410,10 @@ export default function ProjectWorkspacePage() {
               <button
                 onClick={downloadAll}
                 disabled={downloadingZip}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-all"
-              >
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{ background: 'rgba(99,102,241,0.1)', color: '#6366F1' }}>
                 {downloadingZip ? <Loader2 className="w-3 h-3 animate-spin" /> : <Archive className="w-3 h-3" />}
-                Download
+                Download ZIP
               </button>
             </>
           )}
@@ -442,9 +421,9 @@ export default function ProjectWorkspacePage() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar: solar system + planet cards */}
-        <aside className="w-72 flex-shrink-0 border-r border-border flex flex-col overflow-hidden">
-          <div className="p-3 flex justify-center border-b border-border bg-surface/30">
+        {/* Left sidebar */}
+        <aside className="w-72 flex-shrink-0 border-r border-white/[0.06] flex flex-col overflow-hidden">
+          <div className="p-3 flex justify-center border-b border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.01)' }}>
             <SolarSystem
               planetStatuses={project.planet_statuses}
               onPlanetClick={(id) => setActivePlanet(id === activePlanet ? null : id)}
@@ -468,19 +447,19 @@ export default function ProjectWorkspacePage() {
           </div>
 
           {isCompleted && project.final_output?.validation && (
-            <div className="p-3 border-t border-border">
-              <div className="p-2.5 rounded-xl bg-secondary/10 border border-secondary/20">
-                <p className="text-xs text-slate-500 mb-1.5">Quality Score</p>
+            <div className="p-3 border-t border-white/[0.06]">
+              <div className="p-2.5 rounded-xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                <p className="text-xs mb-1.5" style={{ color: '#52525B' }}>Quality Score</p>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${project.final_output.validation.quality_score}%` }}
                       transition={{ duration: 1.5, ease: 'easeOut' }}
-                      className="h-full rounded-full bg-secondary"
+                      className="h-full rounded-full bg-emerald-500"
                     />
                   </div>
-                  <span className="text-sm font-bold text-secondary">
+                  <span className="text-sm font-bold text-emerald-500">
                     {project.final_output.validation.quality_score}%
                   </span>
                 </div>
@@ -492,7 +471,8 @@ export default function ProjectWorkspacePage() {
         {/* Main area */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Tabs */}
-          <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto flex-shrink-0">
+          <div className="flex items-center gap-1 px-4 py-2 border-b border-white/[0.06] overflow-x-auto flex-shrink-0"
+               style={{ background: 'rgba(255,255,255,0.01)' }}>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -501,8 +481,9 @@ export default function ProjectWorkspacePage() {
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
                   activeTab === tab.id
                     ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-slate-500 hover:text-white hover:bg-surface-2'
+                    : 'hover:text-white hover:bg-white/[0.04]'
                 )}
+                style={activeTab !== tab.id ? { color: '#52525B' } : {}}
               >
                 <tab.icon className="w-3.5 h-3.5" />
                 {tab.label}
@@ -574,25 +555,13 @@ function AIRAComputer({
   previewUrl, previewBackendUrl, previewState, previewError,
   onFileSelect, onCopy, onRefreshFiles, onLaunchPreview, onStopPreview,
 }: {
-  projectId: string
-  files: FileNode[]
-  fileTree: FileNode[]
-  selectedFile: FileNode | null
-  fileContent: string
-  fileLoading: boolean
-  terminalLines: string[]
-  copied: boolean
-  isCompleted: boolean
-  isRunning: boolean
-  previewUrl: string | null
-  previewBackendUrl: string | null
-  previewState: 'idle' | 'starting' | 'ready' | 'error'
-  previewError: string
-  onFileSelect: (f: FileNode) => void
-  onCopy: () => void
-  onRefreshFiles: () => void
-  onLaunchPreview: () => void
-  onStopPreview: () => void
+  projectId: string; files: FileNode[]; fileTree: FileNode[]
+  selectedFile: FileNode | null; fileContent: string; fileLoading: boolean
+  terminalLines: string[]; copied: boolean; isCompleted: boolean; isRunning: boolean
+  previewUrl: string | null; previewBackendUrl: string | null
+  previewState: 'idle' | 'starting' | 'ready' | 'error'; previewError: string
+  onFileSelect: (f: FileNode) => void; onCopy: () => void
+  onRefreshFiles: () => void; onLaunchPreview: () => void; onStopPreview: () => void
 }) {
   const [panel, setPanel] = useState<'code' | 'terminal' | 'preview'>('code')
   const termRef = useRef<HTMLDivElement>(null)
@@ -602,20 +571,14 @@ function AIRAComputer({
     termRef.current?.scrollTo({ top: termRef.current.scrollHeight, behavior: 'smooth' })
   }, [terminalLines])
 
-  // Poll the generated backend's health while the preview is up
   useEffect(() => {
-    if (previewState !== 'ready' || !previewBackendUrl) {
-      setBackendOnline(null)
-      return
-    }
+    if (previewState !== 'ready' || !previewBackendUrl) { setBackendOnline(null); return }
     let cancelled = false
     const check = async () => {
       try {
         const res = await fetch(`${previewBackendUrl}/health`, { signal: AbortSignal.timeout(4000) })
         if (!cancelled) setBackendOnline(res.ok)
-      } catch {
-        if (!cancelled) setBackendOnline(false)
-      }
+      } catch { if (!cancelled) setBackendOnline(false) }
     }
     check()
     const t = setInterval(check, 5000)
@@ -626,9 +589,9 @@ function AIRAComputer({
     return (
       <div className="flex items-center justify-center h-full text-center">
         <div>
-          <Monitor className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400 text-lg font-semibold">AIRA Computer</p>
-          <p className="text-slate-600 text-sm mt-1">Start a project to see generated files here</p>
+          <Monitor className="w-16 h-16 mx-auto mb-4" style={{ color: '#27272A' }} />
+          <p className="text-lg font-semibold" style={{ color: '#71717A' }}>AIRA Computer</p>
+          <p className="text-sm mt-1" style={{ color: '#3F3F46' }}>Start a project to see generated files here</p>
         </div>
       </div>
     )
@@ -637,86 +600,62 @@ function AIRAComputer({
   return (
     <div className="flex h-full overflow-hidden">
       {/* File tree sidebar */}
-      <div className="w-56 flex-shrink-0 border-r border-border flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Explorer</span>
-          <button
-            onClick={onRefreshFiles}
-            className="p-1 rounded hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
-            title="Refresh files"
-          >
+      <div className="w-56 flex-shrink-0 border-r border-white/[0.06] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#52525B' }}>Explorer</span>
+          <button onClick={onRefreshFiles} className="p-1 rounded hover:bg-white/[0.04] transition-colors"
+                  style={{ color: '#52525B' }} title="Refresh files">
             <RefreshCw className="w-3 h-3" />
           </button>
         </div>
-
         <div className="flex-1 overflow-y-auto py-1">
           {isRunning && files.length === 0 && (
             <div className="px-3 py-4 text-center">
               <Loader2 className="w-4 h-4 animate-spin text-primary mx-auto mb-2" />
-              <p className="text-xs text-slate-500">Planets building...</p>
+              <p className="text-xs" style={{ color: '#52525B' }}>Planets building...</p>
             </div>
           )}
           {fileTree.map((node, i) => (
             <TreeNode key={i} node={node} depth={0} selected={selectedFile?.path || null} onSelect={onFileSelect} />
           ))}
         </div>
-
         {files.length > 0 && (
-          <div className="border-t border-border px-3 py-2">
-            <p className="text-xs text-slate-600">{files.length} files generated</p>
+          <div className="border-t border-white/[0.06] px-3 py-2">
+            <p className="text-xs" style={{ color: '#3F3F46' }}>{files.length} files generated</p>
           </div>
         )}
       </div>
 
       {/* Code viewer + terminal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Panel tabs */}
-        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border bg-surface/50 flex-shrink-0">
-          <button
-            onClick={() => setPanel('code')}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all',
-              panel === 'code' ? 'bg-surface-2 text-white' : 'text-slate-500 hover:text-white'
-            )}
-          >
-            <Code2 className="w-3 h-3" />
-            {selectedFile ? selectedFile.name : 'Code View'}
-          </button>
-          <button
-            onClick={() => setPanel('terminal')}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all',
-              panel === 'terminal' ? 'bg-surface-2 text-white' : 'text-slate-500 hover:text-white'
-            )}
-          >
-            <Terminal className="w-3 h-3" />
-            Terminal
-          </button>
-          <button
-            onClick={() => setPanel('preview')}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all',
-              panel === 'preview' ? 'bg-surface-2 text-white' : 'text-slate-500 hover:text-white'
-            )}
-          >
-            <Globe className="w-3 h-3" />
-            Live Preview
-            {previewState === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />}
-          </button>
+        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-white/[0.06] flex-shrink-0"
+             style={{ background: 'rgba(255,255,255,0.02)' }}>
+          {(['code', 'terminal', 'preview'] as const).map((p) => (
+            <button key={p} onClick={() => setPanel(p)}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all',
+                panel === p ? 'bg-white/[0.08] text-white' : 'hover:text-white'
+              )}
+              style={panel !== p ? { color: '#52525B' } : {}}>
+              {p === 'code' && <Code2 className="w-3 h-3" />}
+              {p === 'terminal' && <Terminal className="w-3 h-3" />}
+              {p === 'preview' && <Globe className="w-3 h-3" />}
+              {p === 'code' ? (selectedFile?.name || 'Code View') : p === 'terminal' ? 'Terminal' : 'Live Preview'}
+              {p === 'preview' && previewState === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+            </button>
+          ))}
           {selectedFile && (
             <div className="ml-auto flex items-center gap-1">
-              <span className="text-xs text-slate-600 font-mono">{selectedFile.path}</span>
-              <button
-                onClick={onCopy}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all"
-              >
-                {copied ? <Check className="w-3 h-3 text-secondary" /> : <Copy className="w-3 h-3" />}
+              <span className="text-[10px] font-mono" style={{ color: '#3F3F46' }}>{selectedFile.path}</span>
+              <button onClick={onCopy}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-white/[0.04]"
+                style={{ color: '#52525B' }}>
+                {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </button>
             </div>
           )}
         </div>
 
-        {/* Code panel */}
         {panel === 'code' && (
           <div className="flex-1 overflow-auto">
             {fileLoading ? (
@@ -724,14 +663,15 @@ function AIRAComputer({
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : fileContent ? (
-              <pre className="p-4 text-xs leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-all min-h-full">
+              <pre className="p-4 text-xs leading-relaxed font-mono whitespace-pre-wrap break-all min-h-full"
+                   style={{ color: '#D4D4D8' }}>
                 <code>{fileContent}</code>
               </pre>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <Code2 className="w-12 h-12 text-slate-700 mb-4" />
-                <p className="text-slate-500 font-medium">Select a file to view its contents</p>
-                <p className="text-slate-600 text-sm mt-1">
+                <Code2 className="w-12 h-12 mb-4" style={{ color: '#27272A' }} />
+                <p className="font-medium" style={{ color: '#52525B' }}>Select a file to view its contents</p>
+                <p className="text-sm mt-1" style={{ color: '#3F3F46' }}>
                   {isRunning ? 'Files will appear as planets complete their work' : 'Click any file in the explorer'}
                 </p>
               </div>
@@ -739,20 +679,15 @@ function AIRAComputer({
           </div>
         )}
 
-        {/* Terminal panel */}
         {panel === 'terminal' && (
-          <div
-            ref={termRef}
-            className="flex-1 overflow-auto p-4 font-mono text-xs"
-            style={{ background: '#0D0D1A' }}
-          >
+          <div ref={termRef} className="flex-1 overflow-auto p-4 font-mono text-xs" style={{ background: '#09090B' }}>
             {terminalLines.map((line, i) => (
               <div key={i} className={clsx(
                 'leading-relaxed',
-                line.startsWith('$') ? 'text-secondary' :
+                line.startsWith('$') ? 'text-emerald-500' :
                 line.includes('ERROR') || line.includes('error') ? 'text-red-400' :
                 line.includes('[AIRA]') ? 'text-yellow-400' :
-                line.includes('[MERCURY]') ? 'text-slate-400' :
+                line.includes('[MERCURY]') ? 'text-zinc-400' :
                 line.includes('[MARS]') ? 'text-red-300' :
                 line.includes('[VENUS]') ? 'text-yellow-300' :
                 line.includes('[EARTH]') ? 'text-blue-300' :
@@ -761,7 +696,7 @@ function AIRAComputer({
                 line.includes('[NEPTUNE]') ? 'text-indigo-300' :
                 line.includes('[URANUS]') ? 'text-cyan-300' :
                 line.includes('[PLUTO]') ? 'text-purple-300' :
-                'text-slate-300'
+                'text-zinc-300'
               )}>
                 {line}
               </div>
@@ -776,27 +711,24 @@ function AIRAComputer({
           </div>
         )}
 
-        {/* Live Preview panel — the real generated app, embedded */}
         {panel === 'preview' && (
           <div className="flex-1 flex flex-col overflow-hidden">
             {previewState === 'idle' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <Globe className="w-14 h-14 text-slate-700 mb-4" />
-                <p className="text-slate-400 font-semibold text-lg">Test the real product</p>
-                <p className="text-slate-600 text-sm mt-1 max-w-md">
+                <Globe className="w-14 h-14 mb-4" style={{ color: '#27272A' }} />
+                <p className="font-semibold text-lg" style={{ color: '#71717A' }}>Test the real product</p>
+                <p className="text-sm mt-1 max-w-md" style={{ color: '#3F3F46' }}>
                   Boot the generated frontend + backend and interact with the app right here —
                   navigate pages, call the API, try the features.
                 </p>
-                <button
-                  onClick={onLaunchPreview}
-                  disabled={!isCompleted}
-                  className="btn-primary flex items-center gap-2 mt-6 px-6 py-3 text-sm"
-                >
+                <button onClick={onLaunchPreview} disabled={!isCompleted}
+                  className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
+                  style={{ background: isCompleted ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : '#18181B' }}>
                   <Play className="w-4 h-4" />
                   {isCompleted ? 'Start Live Preview' : 'Waiting for project to complete...'}
                 </button>
                 {!isCompleted && (
-                  <p className="text-xs text-slate-600 mt-2">Preview is available once all planets finish.</p>
+                  <p className="text-xs mt-2" style={{ color: '#3F3F46' }}>Preview is available once all planets finish.</p>
                 )}
               </div>
             )}
@@ -804,8 +736,8 @@ function AIRAComputer({
             {previewState === 'starting' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                 <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-                <p className="text-slate-300 font-medium">Booting generated app...</p>
-                <p className="text-slate-600 text-sm mt-1">
+                <p className="font-medium" style={{ color: '#A1A1AA' }}>Booting generated app...</p>
+                <p className="text-sm mt-1" style={{ color: '#3F3F46' }}>
                   Installing dependencies &amp; starting the frontend + backend (first time takes a few minutes)
                 </p>
               </div>
@@ -813,62 +745,47 @@ function AIRAComputer({
 
             {previewState === 'error' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <AlertCircle className="w-10 h-10 text-error mb-4" />
-                <p className="text-slate-300 font-medium">Preview failed to start</p>
-                <p className="text-error text-sm mt-1 max-w-md break-all">{previewError || 'Unknown error'}</p>
-                <button onClick={onLaunchPreview} className="btn-ghost mt-5 text-sm">
-                  Try Again
-                </button>
+                <AlertCircle className="w-10 h-10 mb-4" style={{ color: '#EF4444' }} />
+                <p className="font-medium" style={{ color: '#A1A1AA' }}>Preview failed to start</p>
+                <p className="text-sm mt-1 max-w-md break-all" style={{ color: '#EF4444' }}>{previewError || 'Unknown error'}</p>
+                <button onClick={onLaunchPreview} className="btn-ghost mt-5 text-sm">Try Again</button>
               </div>
             )}
 
             {previewState === 'ready' && previewUrl && (
               <>
-                {/* Preview toolbar: backend status + actions */}
-                <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border bg-surface/50 flex-shrink-0">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <div className="flex items-center gap-3 px-3 py-1.5 border-b border-white/[0.06] flex-shrink-0"
+                     style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <div className="flex items-center gap-1.5 text-xs" style={{ color: '#71717A' }}>
                     <span className={clsx(
                       'w-2 h-2 rounded-full',
-                      backendOnline === null ? 'bg-warning animate-pulse' :
-                      backendOnline ? 'bg-secondary' : 'bg-error'
+                      backendOnline === null ? 'bg-yellow-500 animate-pulse' :
+                      backendOnline ? 'bg-emerald-500' : 'bg-red-500'
                     )} />
                     <span>Backend</span>
                     {previewBackendUrl && (
-                      <code className="text-[10px] text-slate-600 font-mono ml-1">{previewBackendUrl}</code>
+                      <code className="text-[10px] font-mono ml-1" style={{ color: '#3F3F46' }}>{previewBackendUrl}</code>
                     )}
-                    <span className="text-slate-600">
-                      {backendOnline === null ? 'checking...' : backendOnline ? 'online' : 'offline'}
-                    </span>
                   </div>
                   <div className="ml-auto flex items-center gap-1.5">
-                    <a
-                      href={previewBackendUrl ? `${previewBackendUrl}/docs` : undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2 py-1 rounded text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      API Docs
-                    </a>
-                    <a
-                      href={previewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all"
-                    >
+                    <a href={previewBackendUrl ? `${previewBackendUrl}/docs` : undefined}
+                       target="_blank" rel="noopener noreferrer"
+                       className="px-2 py-1 rounded text-xs transition-all hover:bg-white/[0.04]"
+                       style={{ color: '#71717A' }}>API Docs</a>
+                    <a href={previewUrl} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-white/[0.04]"
+                       style={{ color: '#71717A' }}>
                       <ExternalLink className="w-3 h-3" />
                       Open in new tab
                     </a>
-                    <button
-                      onClick={onStopPreview}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs text-slate-400 hover:text-error hover:bg-error/10 transition-all"
-                    >
+                    <button onClick={onStopPreview}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-red-500/10"
+                      style={{ color: '#71717A' }}>
                       <X className="w-3 h-3" />
                       Stop
                     </button>
                   </div>
                 </div>
-
-                {/* The real product, embedded */}
                 <div className="flex-1 overflow-hidden bg-white">
                   <iframe
                     src={previewUrl}
@@ -888,22 +805,16 @@ function AIRAComputer({
 
 // ─── Live Feed Tab ────────────────────────────────────────────────────────────
 function PlanetsTab({ events, project, logRef }: {
-  events: StreamEvent[]
-  project: Project
-  logRef: React.RefObject<HTMLDivElement>
+  events: StreamEvent[]; project: Project; logRef: React.RefObject<HTMLDivElement>
 }) {
   const allMessages = [
     ...(project.messages || []),
     ...events.map(e => ({
-      planet: e.planet || 'aira',
-      event: e.event,
-      message: e.message,
-      quip: e.quip,
-      timestamp: new Date().toISOString(),
+      planet: e.planet || 'aira', event: e.event, message: e.message,
+      quip: e.quip, timestamp: new Date().toISOString(),
     }))
   ]
 
-  // Deduplicate by message content
   const seen = new Set<string>()
   const unique = allMessages.filter(m => {
     const key = `${m.planet}:${m.message}`
@@ -916,42 +827,38 @@ function PlanetsTab({ events, project, logRef }: {
     <div className="h-full overflow-y-auto p-6" ref={logRef}>
       <div className="max-w-2xl mx-auto space-y-3">
         {/* Mission brief */}
-        <div className="p-4 rounded-2xl glass border border-yellow-500/20 mb-6">
+        <div className="p-4 rounded-2xl mb-6"
+             style={{ background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.12)' }}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl" style={{ background: '#FFD70020' }}>☀️</div>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
+                 style={{ background: 'rgba(255,215,0,0.1)' }}>☀️</div>
             <div>
-              <p className="font-bold text-sm text-yellow-400">AIRA Core</p>
-              <p className="text-xs text-slate-500">Central Intelligence • Orchestrator</p>
+              <p className="font-bold text-sm" style={{ color: '#FFD700' }}>AIRA Core</p>
+              <p className="text-xs" style={{ color: '#52525B' }}>Central Intelligence • Orchestrator</p>
             </div>
           </div>
-          <p className="text-xs text-slate-400 italic">"I don't solve problems alone. I orchestrate intelligence."</p>
-          <p className="text-sm text-white mt-2"><span className="text-slate-500">Mission: </span>{project.request?.idea}</p>
+          <p className="text-xs italic" style={{ color: '#52525B' }}>"I don't solve problems alone. I orchestrate intelligence."</p>
+          <p className="text-sm mt-2"><span style={{ color: '#52525B' }}>Mission: </span>{project.request?.idea}</p>
         </div>
 
         <AnimatePresence initial={false}>
           {unique.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3"
-            >
-              <div
-                className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-sm"
-                style={{ background: `${PLANET_COLORS[msg.planet] || '#6366F1'}18` }}
-              >
+            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-sm"
+                   style={{ background: `${PLANET_COLORS[msg.planet] || '#6366F1'}12` }}>
                 {PLANET_SYMBOLS[msg.planet] || '⚡'}
               </div>
-              <div className="flex-1 p-3 rounded-xl glass border border-white/5">
+              <div className="flex-1 p-3 rounded-xl glass-card">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-bold" style={{ color: PLANET_COLORS[msg.planet] || '#6366F1' }}>
                     {msg.planet?.toUpperCase()}
                   </span>
-                  <span className="text-xs text-slate-600">{msg.event}</span>
+                  <span className="text-xs" style={{ color: '#3F3F46' }}>{msg.event}</span>
                 </div>
-                <p className="text-sm text-slate-300">{msg.message}</p>
+                <p className="text-sm" style={{ color: '#A1A1AA' }}>{msg.message}</p>
                 {msg.quip && (
-                  <p className="text-xs mt-1.5 italic opacity-50" style={{ color: PLANET_COLORS[msg.planet] }}>
+                  <p className="text-xs mt-1.5 italic" style={{ color: PLANET_COLORS[msg.planet], opacity: 0.5 }}>
                     "{msg.quip}"
                   </p>
                 )}
@@ -962,25 +869,23 @@ function PlanetsTab({ events, project, logRef }: {
 
         {project.status === 'running' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 py-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.1)' }}>
               <div className="w-3 h-3 rounded-full border border-primary border-t-transparent animate-spin" />
             </div>
-            <p className="text-sm text-slate-500">Planets working...</p>
+            <p className="text-sm" style={{ color: '#52525B' }}>Planets working...</p>
           </motion.div>
         )}
 
         {project.status === 'completed' && project.final_output?.validation && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="p-4 rounded-2xl border border-secondary/30 bg-secondary/5 mt-4"
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="p-4 rounded-2xl mt-4"
+            style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.2)' }}>
             <div className="flex items-center gap-2 mb-2">
-              <CheckCircle className="w-5 h-5 text-secondary" />
-              <p className="font-bold text-secondary">Mission Complete</p>
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+              <p className="font-bold text-emerald-500">Mission Complete</p>
             </div>
-            <p className="text-sm text-slate-300">{project.final_output.validation.aira_final_note}</p>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-sm" style={{ color: '#A1A1AA' }}>{project.final_output.validation.aira_final_note}</p>
+            <p className="text-xs mt-2" style={{ color: '#52525B' }}>
               {project.final_output.validation.planets_completed}/9 planets • Quality: {project.final_output.validation.quality_score}%
             </p>
           </motion.div>
@@ -999,27 +904,27 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <div className="text-4xl mb-3 opacity-20">{sym}</div>
-        <p className="text-slate-500">Waiting for {planet} to complete...</p>
+        <p style={{ color: '#52525B' }}>Waiting for {planet} to complete...</p>
       </div>
     )
   }
 
   if (data.status === 'error') {
     return (
-      <div className="p-6 m-6 rounded-xl bg-error/10 border border-error/20">
-        <p className="text-error font-medium">Planet encountered an error</p>
-        <p className="text-sm text-slate-400 mt-1">{data.error}</p>
+      <div className="p-6 m-6 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <p style={{ color: '#EF4444' }} className="font-medium">Planet encountered an error</p>
+        <p className="text-sm mt-1" style={{ color: '#71717A' }}>{data.error}</p>
       </div>
     )
   }
 
   const renderValue = (val: any, depth = 0): React.ReactNode => {
-    if (val == null) return <span className="text-slate-500">—</span>
-    if (typeof val === 'string') return <span className="text-slate-300">{val}</span>
+    if (val == null) return <span style={{ color: '#52525B' }}>—</span>
+    if (typeof val === 'string') return <span style={{ color: '#A1A1AA' }}>{val}</span>
     if (typeof val === 'number') return <span className="text-yellow-400">{val}</span>
-    if (typeof val === 'boolean') return <span className={val ? 'text-secondary' : 'text-error'}>{String(val)}</span>
+    if (typeof val === 'boolean') return <span style={{ color: val ? '#10B981' : '#EF4444' }}>{String(val)}</span>
     if (Array.isArray(val)) {
-      if (val.length === 0) return <span className="text-slate-500">[ ]</span>
+      if (val.length === 0) return <span style={{ color: '#52525B' }}>[ ]</span>
       return (
         <ul className="space-y-0.5 mt-1">
           {val.map((item, i) => (
@@ -1036,7 +941,7 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
         <div className={clsx('space-y-2', depth > 0 && 'ml-4 mt-1')}>
           {Object.entries(val).map(([k, v]) => (
             <div key={k}>
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{k.replace(/_/g, ' ')}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#52525B' }}>{k.replace(/_/g, ' ')}</span>
               <div className="mt-0.5 text-sm">{renderValue(v, depth + 1)}</div>
             </div>
           ))}
@@ -1058,16 +963,17 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
             <span className="font-bold capitalize text-sm" style={{ color }}>{planet} Output</span>
           </div>
           {data.personality_quip && (
-            <p className="text-xs italic text-slate-500 max-w-xs text-right">"{data.personality_quip}"</p>
+            <p className="text-xs italic max-w-xs text-right" style={{ color: '#52525B' }}>"{data.personality_quip}"</p>
           )}
         </div>
 
         {data.files_generated?.length > 0 && (
-          <div className="p-4 rounded-xl glass border border-border">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Files Generated</p>
+          <div className="p-4 rounded-xl glass-card">
+            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#52525B' }}>Files Generated</p>
             <div className="flex flex-wrap gap-1.5">
               {data.files_generated.map((f: string, i: number) => (
-                <span key={i} className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-surface-2 text-slate-400">
+                <span key={i} className="flex items-center gap-1 text-xs px-2 py-1 rounded"
+                      style={{ background: 'rgba(255,255,255,0.04)', color: '#71717A' }}>
                   <FileText className="w-2.5 h-2.5" />{f}
                 </span>
               ))}
@@ -1078,7 +984,7 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
         {Object.entries(content)
           .filter(([k]) => k !== 'personality_quip')
           .map(([key, value]) => (
-            <div key={key} className="p-4 rounded-xl glass border border-border">
+            <div key={key} className="p-4 rounded-xl glass-card">
               <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color }}>
                 {key.replace(/_/g, ' ')}
               </p>

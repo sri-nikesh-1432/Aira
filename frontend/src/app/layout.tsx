@@ -4,7 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'AIRA OS — Multi-Agent AI Orchestration System',
   description:
-    'AIRA (Artificial Intelligence Research & Innovation Assistant) — The Central Intelligence of AIRA OS. Orchestrating 5 specialized AI planets to build complete projects.',
+    'AIRA (Artificial Intelligence Research & Innovation Assistant) — The Central Intelligence of AIRA OS. Orchestrating 10 specialized AI agents to build complete projects.',
   authors: [{ name: 'Sri D' }],
   keywords: ['AI', 'Multi-Agent', 'Orchestration', 'AIRA', 'MSME', 'Hackathon'],
 }
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0A0A14',
+  themeColor: '#09090B',
 }
 
 export default function RootLayout({

@@ -95,29 +95,29 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-[#F5F0EB]">
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 bg-white/80 backdrop-blur-xl border-b border-zinc-200">
+      <header className="flex items-center justify-between px-8 py-4 bg-white/80 backdrop-blur-xl border-b border-[#2C2420]/8">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
             <span className="text-base">☀️</span>
           </div>
           <div>
-            <p className="font-bold text-[13px] text-zinc-900 leading-none">AIRA OS</p>
-            <p className="text-[10px] text-zinc-400 leading-none mt-0.5">Multi-Agent AI</p>
+            <p className="font-bold text-[13px] text-[#2C2420] leading-none">AIRA OS</p>
+            <p className="text-[10px] text-[#A19B95] leading-none mt-0.5">Multi-Agent AI</p>
           </div>
         </Link>
-        <p className="text-sm text-zinc-400">New Project</p>
+        <p className="text-sm text-[#A19B95]">New Project</p>
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           {/* Left: Form */}
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1 text-zinc-900">
+            <h1 className="text-3xl font-bold tracking-tight mb-1 text-[#2C2420]">
               Start a New <span className="text-gradient">Project</span>
             </h1>
-            <p className="text-sm mb-8 text-zinc-500">
+            <p className="text-sm mb-8 text-[#716B65]">
               Describe your idea and AIRA will orchestrate all 9 specialized AI planets to build it end-to-end.
             </p>
 
@@ -131,14 +131,14 @@ export default function NewProjectPage() {
                 rows={5}
                 className="input-field resize-none text-sm leading-relaxed"
               />
-              <p className="text-[11px] mt-1.5 text-zinc-400">
+              <p className="text-[11px] mt-1.5 text-[#A19B95]">
                 Be descriptive — the more context you give, the better the output.
               </p>
             </div>
 
             {/* Example ideas */}
             <div className="mb-6">
-              <p className="text-[11px] mb-1.5 flex items-center gap-1 text-zinc-400">
+              <p className="text-[11px] mb-1.5 flex items-center gap-1 text-[#A19B95]">
                 <Lightbulb className="w-3 h-3" /> Example ideas:
               </p>
               <div className="space-y-1">
@@ -146,10 +146,10 @@ export default function NewProjectPage() {
                   <button
                     key={i}
                     onClick={() => setIdea(ex)}
-                    className="w-full text-left text-xs px-3 py-2 rounded-lg bg-white border border-zinc-200 hover:border-zinc-300 transition-all"
+                    className="w-full text-left text-xs px-3 py-2 rounded-lg bg-white border border-[#2C2420]/8 hover:border-[#2C2420]/12 transition-all"
                   >
-                    <ChevronRight className="w-3 h-3 inline mr-1 text-zinc-300" />
-                    <span className="text-zinc-500">{ex}</span>
+                    <ChevronRight className="w-3 h-3 inline mr-1 text-[#D4C8BC]" />
+                    <span className="text-[#716B65]">{ex}</span>
                   </button>
                 ))}
               </div>
@@ -162,15 +162,15 @@ export default function NewProjectPage() {
                 {...getRootProps()}
                 className={clsx(
                   'border border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
-                  isDragActive ? 'border-indigo-400 bg-indigo-50' : 'border-zinc-300 hover:border-indigo-300 bg-white'
+                  isDragActive ? 'border-indigo-400 bg-[#8B5A2B]/5' : 'border-[#2C2420]/12 hover:border-indigo-300 bg-white'
                 )}
               >
                 <input {...getInputProps()} />
-                <Upload className="w-7 h-7 mx-auto mb-2 text-zinc-300" />
-                <p className="text-sm text-zinc-500">
+                <Upload className="w-7 h-7 mx-auto mb-2 text-[#D4C8BC]" />
+                <p className="text-sm text-[#716B65]">
                   {isDragActive ? 'Drop files here' : 'Drag MSME PDFs, PPTs, docs here, or click to browse'}
                 </p>
-                <p className="text-[11px] mt-1 text-zinc-400">PDF, PPT, DOCX, TXT &bull; Max 5 files</p>
+                <p className="text-[11px] mt-1 text-[#A19B95]">PDF, PPT, DOCX, TXT &bull; Max 5 files</p>
               </div>
               {uploadedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -189,7 +189,7 @@ export default function NewProjectPage() {
             {/* Advanced options */}
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-1.5 text-sm transition-colors mb-3 text-zinc-500 hover:text-zinc-700"
+              className="flex items-center gap-1.5 text-sm transition-colors mb-3 text-[#716B65] hover:text-[#5A544E]"
             >
               <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform', showAdvanced && 'rotate-180')} />
               Advanced Options
@@ -237,10 +237,9 @@ export default function NewProjectPage() {
               className={clsx(
                 'w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all',
                 isSubmitting || !idea.trim()
-                  ? 'opacity-40 cursor-not-allowed bg-zinc-200 text-zinc-400'
-                  : 'text-white hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5'
-              )}
-              style={!isSubmitting && idea.trim() ? { background: 'linear-gradient(135deg, #6366F1, #4F46E5)' } : {}}
+                  ? 'opacity-40 cursor-not-allowed bg-[#EDE5DC] text-[#A19B95]'
+                  : 'text-white hover:shadow-lg hover:shadow-[#8B5A2B]/25 hover:-translate-y-0.5'
+              )}                  style={!isSubmitting && idea.trim() ? { background: 'linear-gradient(135deg, #8B5A2B, #6B3F1F)' } : {}}
             >
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Launching AIRA...</>
@@ -259,16 +258,16 @@ export default function NewProjectPage() {
           {/* Right: Pipeline steps */}
           <div className="flex flex-col gap-4">
             <div className="text-center mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1">What Happens Next</p>
-              <p className="text-[11px] text-zinc-300">10 AI agents work in sequence</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#A19B95] mb-1">What Happens Next</p>
+              <p className="text-[11px] text-[#D4C8BC]">10 AI agents work in sequence</p>
             </div>
             <div className="space-y-2">
               {PLANETS.map((step) => (
-                <div key={step.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-zinc-200">
+                <div key={step.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-[#2C2420]/8">
                   <span className="text-lg w-8 text-center">{step.symbol}</span>
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-semibold" style={{ color: step.color }}>{step.name}</span>
-                    <p className="text-[11px] text-zinc-400 truncate">
+                    <p className="text-[11px] text-[#A19B95] truncate">
                       {step.id === 'aira' && 'Understands your goal & orchestrates every planet'}
                       {step.id === 'mercury' && 'Researches domain, competitors, patents, MSME rules'}
                       {step.id === 'mars' && 'Designs system architecture & tech stack'}

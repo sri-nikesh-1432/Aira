@@ -51,21 +51,21 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAFA]">
+    <div className="flex min-h-screen bg-[#F5F0EB]">
       <Sidebar apiOnline={apiOnline} />
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-8 max-w-6xl">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Projects</h1>
-              <p className="text-sm mt-1 text-zinc-400">
+              <h1 className="text-3xl font-bold tracking-tight text-[#2C2420]">Projects</h1>
+              <p className="text-sm mt-1 text-[#A19B95]">
                 Every mission AIRA has orchestrated
               </p>
             </div>
             <Link href="/project/new"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #6366F1, #4F46E5)' }}>
+              style={{ background: 'linear-gradient(135deg, #8B5A2B, #6B3F1F)' }}>
               <Plus className="w-4 h-4" />
               New Project
             </Link>
@@ -85,16 +85,16 @@ export default function ProjectsPage() {
               style={{ background: 'rgba(99,102,241,0.02)' }}
             >
               <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl"
-                   style={{ background: 'rgba(99,102,241,0.08)' }}>
+                   style={{ background: 'rgba(139,90,43,0.08)' }}>
                 <FolderOpen className="w-7 h-7 text-primary" />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-zinc-900">No projects yet</h2>
-              <p className="text-sm mb-6 text-zinc-400">
+              <h2 className="text-xl font-bold mb-2 text-[#2C2420]">No projects yet</h2>
+              <p className="text-sm mb-6 text-[#A19B95]">
                 Launch your first mission and AIRA&apos;s planets will build it for you.
               </p>
               <Link href="/project/new"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
-                style={{ background: 'linear-gradient(135deg, #6366F1, #4F46E5)' }}>
+                style={{ background: 'linear-gradient(135deg, #8B5A2B, #6B3F1F)' }}>
                 <Sparkles className="w-4 h-4" />
                 Start First Project
               </Link>
@@ -119,10 +119,10 @@ export default function ProjectsPage() {
                     >
                       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: meta.color }} />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-zinc-800 truncate">
+                        <p className="text-sm font-medium text-[#2C2420] truncate">
                           {project.idea || 'AI Project'}
                         </p>
-                        <p className="text-[11px] mt-0.5 text-zinc-400">
+                        <p className="text-[11px] mt-0.5 text-[#A19B95]">
                           {project.id.slice(0, 8)} &bull;{' '}
                           {project.created_at
                             ? formatDistanceToNow(new Date(project.created_at), { addSuffix: true })
@@ -138,7 +138,7 @@ export default function ProjectsPage() {
 
                     <button
                       onClick={() => router.push(`/project/${project.id}`)}
-                      className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0 text-zinc-400"
+                      className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0 text-[#A19B95]"
                       title="Open project"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -146,7 +146,7 @@ export default function ProjectsPage() {
                     <button
                       onClick={() => handleDelete(project.id)}
                       disabled={deleting === project.id}
-                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 text-zinc-400 hover:text-red-500"
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 text-[#A19B95] hover:text-red-500"
                       title="Delete project"
                     >
                       <Trash2 className={clsx('w-3.5 h-3.5', deleting === project.id && 'animate-pulse')} />
@@ -158,7 +158,7 @@ export default function ProjectsPage() {
           )}
 
           {!loading && projects.length > 0 && (
-            <p className="flex items-center gap-2 text-[11px] mt-5 text-zinc-400">
+            <p className="flex items-center gap-2 text-[11px] mt-5 text-[#A19B95]">
               <Brain className="w-3 h-3" />
               Generated projects are saved under backend/outputs/ and can be downloaded from each project&apos;s workspace.
             </p>

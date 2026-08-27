@@ -113,7 +113,7 @@ export function SolarSystem({
               <circle
                 cx={cx} cy={cy} r={r}
                 fill="none"
-                stroke={isActive ? planet.color : isDone ? `${planet.color}44` : 'rgba(255,255,255,0.055)'}
+                stroke={isActive ? planet.color : isDone ? `${planet.color}44` : 'rgba(44,36,32,0.08)'}
                 strokeWidth={isActive ? 1.3 : 0.6}
                 strokeDasharray={isActive ? '4 6' : undefined}
                 style={{

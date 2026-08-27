@@ -3,26 +3,19 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'AIRA OS — Multi-Agent AI Orchestration System',
-  description:
-    'AIRA (Artificial Intelligence Research & Innovation Assistant) — The Central Intelligence of AIRA OS. Orchestrating 10 specialized AI agents to build complete projects.',
-  authors: [{ name: 'Sri D' }],
-  keywords: ['AI', 'Multi-Agent', 'Orchestration', 'AIRA', 'MSME', 'Hackathon'],
+  description: 'Orchestrating 10 specialized AI agents to build complete projects.',
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#FAFAFA',
+  themeColor: '#F5F0EB',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-[#FAFAFA] text-zinc-900 antialiased min-h-screen">
+      <body className="bg-[#F5F0EB] text-[#2C2420] antialiased min-h-screen">
         {children}
       </body>
     </html>

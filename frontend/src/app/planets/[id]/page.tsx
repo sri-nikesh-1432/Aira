@@ -24,18 +24,12 @@ export default function PlanetPage() {
   if (!planet) return null
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0a0a0c' }}>
+    <div className="min-h-screen flex flex-col bg-[#F5F0EB]">
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30"
-              style={{
-                background: 'rgba(10,10,12,0.9)',
-                backdropFilter: 'blur(20px)',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-              }}>
+      <header className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30 bg-[#FFFCF9]/90 backdrop-blur-xl border-b border-[#2C2420]/8">
         <button
           onClick={() => router.push('/planets')}
-          className="p-2 rounded-lg hover:bg-white/[0.05] transition-colors"
-          style={{ color: '#71717A' }}
+          className="p-2 rounded-lg hover:bg-[#EDE5DC] transition-colors text-[#716B65]"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -43,7 +37,7 @@ export default function PlanetPage() {
           <span className="text-lg">{planet.symbol}</span>
           <div>
             <h1 className="font-bold text-sm" style={{ color: planet.color }}>{planet.name}</h1>
-            <p className="text-[10px]" style={{ color: '#52525B' }}>{planet.title}</p>
+            <p className="text-[10px] text-[#716B65]">{planet.title}</p>
           </div>
         </div>
         <div className="flex-1" />
@@ -53,9 +47,9 @@ export default function PlanetPage() {
             <Link
               key={p.id}
               href={`/planets/${p.id}`}
-              className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-white/[0.05]"
+              className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:bg-[#EDE5DC]"
               style={{
-                color: p.id === planetId ? p.color : '#52525B',
+                color: p.id === planetId ? p.color : '#716B65',
                 background: p.id === planetId ? `${p.color}10` : 'transparent',
               }}
             >

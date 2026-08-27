@@ -560,7 +560,7 @@ function OutputSection({ section, index, planet }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.05 * index }}
       className="rounded-xl overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
+      style={{ background: 'rgba(44,36,32,0.02)', border: '1px solid rgba(44,36,32,0.06)' }}
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -578,7 +578,7 @@ function OutputSection({ section, index, planet }: {
         <ChevronDown className={clsx(
           'w-3.5 h-3.5 transition-transform duration-200',
           expanded && 'rotate-180'
-        )} style={{ color: '#52525B' }} />
+        )} style={{ color: '#716B65' }} />
       </button>
       <AnimatePresence>
         {expanded && (
@@ -590,7 +590,7 @@ function OutputSection({ section, index, planet }: {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4">
-              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: '#A1A1AA' }}>
+              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: '#716B65' }}>
                 {section.content}
               </p>
             </div>
@@ -638,7 +638,7 @@ function PlanetCanvas({ planet, isProcessing, progress }: {
       time += 0.015
 
       // Background grid
-      ctx.strokeStyle = 'rgba(255,255,255,0.015)'
+      ctx.strokeStyle = 'rgba(44,36,32,0.02)'
       ctx.lineWidth = 0.5
       const gridSize = 40
       for (let x = 0; x < W; x += gridSize) {
@@ -863,7 +863,7 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
             {/* Canvas */}
             <div className="lg:col-span-2 rounded-2xl overflow-hidden"
-                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                 style={{ background: 'rgba(44,36,32,0.02)', border: '1px solid rgba(44,36,32,0.06)' }}>
               <PlanetCanvas planet={planet} isProcessing={isProcessing} progress={progress} />
             </div>
 
@@ -879,22 +879,22 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                   </div>
                   <div>
                     <h2 className="font-bold text-base" style={{ color: planet.color }}>{planet.name}</h2>
-                    <p className="text-[11px]" style={{ color: '#52525B' }}>{planet.title}</p>
+                    <p className="text-[11px]" style={{ color: '#716B65' }}>{planet.title}</p>
                   </div>
                 </div>
                 <p className="text-xs italic leading-relaxed" style={{ color: planet.color, opacity: 0.7 }}>
                   &ldquo;{planet.motto}&rdquo;
                 </p>
-                <p className="text-xs mt-3 leading-relaxed" style={{ color: '#71717A' }}>
+                <p className="text-xs mt-3 leading-relaxed" style={{ color: '#716B65' }}>
                   {planet.personality}
                 </p>
               </div>
 
               {/* Input Area */}
               <div className="rounded-2xl p-4"
-                   style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                   style={{ background: 'rgba(255,252,249,0.85)', border: '1px solid rgba(44,36,32,0.06)' }}>
                 <label className="text-[11px] font-semibold uppercase tracking-wider mb-2 block"
-                       style={{ color: '#52525B' }}>
+                       style={{ color: '#716B65' }}>
                   {config.inputLabel}
                 </label>
                 <textarea
@@ -914,7 +914,7 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                       'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all',
                       (!input.trim() || isProcessing)
                         ? 'opacity-30 cursor-not-allowed'
-                        : 'hover:scale-[1.02] hover:shadow-lg text-white'
+                        : 'hover:scale-[1.02] hover:shadow-lg text-[#8B5A2B]'
                     )}
                     style={{
                       background: (!input.trim() || isProcessing) ? '#18181B' : planet.color,
@@ -936,9 +936,9 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                     <button
                       onClick={handleReset}
                       className="p-2.5 rounded-xl transition-all hover:bg-white/[0.06]"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      style={{ background: 'rgba(44,36,32,0.04)', border: '1px solid rgba(44,36,32,0.08)' }}
                     >
-                      <RotateCcw className="w-3.5 h-3.5" style={{ color: '#52525B' }} />
+                      <RotateCcw className="w-3.5 h-3.5" style={{ color: '#716B65' }} />
                     </button>
                   )}
                 </div>
@@ -948,7 +948,7 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
               {!isProcessing && !output && (
                 <div className="space-y-1.5">
                   <p className="text-[10px] uppercase tracking-wider font-semibold"
-                     style={{ color: '#3F3F46' }}>
+                     style={{ color: '#A19B95' }}>
                     Try these
                   </p>
                   {config.promptSuggestions.map((suggestion, i) => (
@@ -956,7 +956,7 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                       key={i}
                       onClick={() => setInput(suggestion)}
                       className="w-full text-left text-xs px-3 py-2.5 rounded-xl transition-all hover:bg-white/[0.04]"
-                      style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.03)', color: '#71717A' }}
+                      style={{ background: 'rgba(44,36,32,0.02)', border: '1px solid rgba(44,36,32,0.04)', color: '#716B65' }}
                     >
                       {suggestion}
                     </button>
@@ -974,14 +974,14 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 className="mb-8 rounded-2xl p-5"
-                style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)' }}
+                style={{ background: 'rgba(44,36,32,0.02)', border: '1px solid rgba(44,36,32,0.06)' }}
               >
                 <div className="flex items-center gap-2 mb-4">
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: planet.color }} />
                   <h3 className="text-sm font-semibold" style={{ color: planet.color }}>
                     {planet.name} is working...
                   </h3>
-                  <span className="text-[11px] ml-auto tabular-nums" style={{ color: '#52525B' }}>
+                  <span className="text-[11px] ml-auto tabular-nums" style={{ color: '#716B65' }}>
                     {progress}%
                   </span>
                 </div>
@@ -1015,9 +1015,9 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                     <button
                       onClick={handleCopy}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-white/[0.06]"
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      style={{ background: 'rgba(44,36,32,0.06)', border: '1px solid rgba(44,36,32,0.08)' }}
                     >
-                      {copied ? <Check className="w-3 h-3" style={{ color: '#10B981' }} /> : <Copy className="w-3 h-3" style={{ color: '#71717A' }} />}
+                      {copied ? <Check className="w-3 h-3" style={{ color: '#10B981' }} /> : <Copy className="w-3 h-3" style={{ color: '#716B65' }} />}
                       {copied ? 'Copied' : 'Copy'}
                     </button>
                   </div>
@@ -1033,13 +1033,13 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.06 }}
                         className="rounded-xl p-4 text-center"
-                        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
+                        style={{ background: 'rgba(255,252,249,0.85)', border: '1px solid rgba(44,36,32,0.06)' }}
                       >
                         <p className="text-xl font-bold tabular-nums" style={{ color: metric.color }}>
                           {metric.value}
                         </p>
                         <p className="text-[10px] uppercase tracking-wider mt-1 font-medium"
-                           style={{ color: '#52525B' }}>
+                           style={{ color: '#716B65' }}>
                           {metric.label}
                         </p>
                       </motion.div>
@@ -1050,7 +1050,7 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                 {/* Summary */}
                 <div className="rounded-xl p-4"
                      style={{ background: `${planet.color}05`, border: `1px solid ${planet.color}10` }}>
-                  <p className="text-sm leading-relaxed" style={{ color: '#A1A1AA' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: '#716B65' }}>
                     {output.summary}
                   </p>
                 </div>
@@ -1066,16 +1066,16 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                 {output.codeBlocks && output.codeBlocks.length > 0 && (
                   <div className="space-y-3">
                     <h4 className="text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: '#52525B' }}>
+                        style={{ color: '#716B65' }}>
                       Code Examples
                     </h4>
                     {output.codeBlocks.map((block, i) => (
                       <div key={i} className="rounded-xl overflow-hidden"
-                           style={{ background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.05]"
-                             style={{ background: 'rgba(255,255,255,0.02)' }}>
+                           style={{ background: '#FFFCF9', border: '1px solid rgba(44,36,32,0.06)' }}>
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-[#2C2420]/8"
+                             style={{ background: 'rgba(255,252,249,0.85)' }}>
                           <span className="text-[10px] uppercase tracking-wider font-medium"
-                                style={{ color: '#52525B' }}>
+                                style={{ color: '#716B65' }}>
                             {block.language}
                           </span>
                           <button
@@ -1085,13 +1085,13 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                               setTimeout(() => setCopied(false), 2000)
                             }}
                             className="text-[10px] px-2 py-0.5 rounded hover:bg-white/[0.06] transition-colors"
-                            style={{ color: '#52525B' }}
+                            style={{ color: '#716B65' }}
                           >
                             Copy
                           </button>
                         </div>
                         <pre className="p-4 overflow-x-auto text-xs leading-relaxed"
-                             style={{ color: '#A1A1AA', background: 'transparent', border: 'none' }}>
+                             style={{ color: '#716B65', background: 'transparent', border: 'none' }}>
                           <code>{block.code}</code>
                         </pre>
                       </div>
@@ -1101,11 +1101,11 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
 
                 {/* Voice quote */}
                 <div className="rounded-xl p-4 text-center"
-                     style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                     style={{ background: 'rgba(44,36,32,0.02)', border: '1px solid rgba(44,36,32,0.04)' }}>
                   <p className="text-xs italic" style={{ color: planet.color, opacity: 0.6 }}>
                     &ldquo;{planet.voice[Math.floor(Math.random() * planet.voice.length)]}&rdquo;
                   </p>
-                  <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#3F3F46' }}>
+                  <p className="text-[10px] mt-1.5 font-semibold" style={{ color: '#A19B95' }}>
                     — {planet.name}
                   </p>
                 </div>
@@ -1115,9 +1115,9 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
 
           {/* History */}
           {history.length > 1 && (
-            <div className="mt-12 pt-8 border-t border-white/[0.04]">
+            <div className="mt-12 pt-8 border-t border-[#2C2420]/6">
               <h3 className="text-xs font-semibold uppercase tracking-wider mb-4"
-                  style={{ color: '#3F3F46' }}>
+                  style={{ color: '#A19B95' }}>
                 Previous Runs
               </h3>
               <div className="space-y-2">
@@ -1129,10 +1129,10 @@ export default function PlanetWorkspace({ planetId }: { planetId: PlanetId }) {
                       setOutput(item.output)
                     }}
                     className="w-full text-left px-4 py-3 rounded-xl transition-all hover:bg-white/[0.03]"
-                    style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}
+                    style={{ background: 'rgba(44,36,32,0.02)', border: '1px solid rgba(44,36,32,0.04)' }}
                   >
-                    <p className="text-xs truncate" style={{ color: '#71717A' }}>{item.input}</p>
-                    <p className="text-[10px] mt-1" style={{ color: '#3F3F46' }}>
+                    <p className="text-xs truncate" style={{ color: '#716B65' }}>{item.input}</p>
+                    <p className="text-[10px] mt-1" style={{ color: '#A19B95' }}>
                       {item.output.title} — {item.timestamp.toLocaleTimeString()}
                     </p>
                   </button>

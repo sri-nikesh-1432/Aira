@@ -43,10 +43,10 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
       onClick={onClick}
       className={clsx(
         'relative flex items-start gap-3 p-3.5 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden',
-        isActive && 'border-primary/40 bg-indigo-50',
+        isActive && 'border-primary/40 bg-[#8B5A2B]/5',
         isDone && !isActive && 'border-emerald-200 bg-emerald-50/50',
         status === 'error' && 'border-red-200 bg-red-50/50',
-        !isActive && !isDone && status !== 'error' && 'border-zinc-200 hover:border-zinc-300 bg-white hover:bg-zinc-50'
+        !isActive && !isDone && status !== 'error' && 'border-[#2C2420]/8 hover:border-[#2C2420]/12 bg-white hover:bg-[#EDE5DC]'
       )}
     >
       {/* Active pulse bar */}
@@ -82,7 +82,7 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
             <span
               className={clsx(
                 'text-sm font-semibold transition-colors truncate',
-                lit ? 'text-zinc-900' : 'text-zinc-600'
+                lit ? 'text-[#2C2420]' : 'text-[#5A544E]'
               )}
             >
               {planet.name}
@@ -106,7 +106,7 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
 
         {/* Live message */}
         {message && (isProcessing || isDone) && (
-          <p className="text-xs mt-2 text-zinc-500 leading-relaxed line-clamp-2">
+          <p className="text-xs mt-2 text-[#716B65] leading-relaxed line-clamp-2">
             {message}
           </p>
         )}

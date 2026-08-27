@@ -10,6 +10,7 @@ import {
   Monitor, Terminal, FolderOpen, FolderClosed,
   RefreshCw, Play, Maximize2, X, File,
   Archive, Check, Loader2, Eye, Globe, Zap,
+  Brain,
 } from 'lucide-react'
 import { SolarSystem } from '@/components/planets/SolarSystem'
 import { PlanetCard } from '@/components/planets/PlanetCard'
@@ -385,7 +386,7 @@ export default function ProjectWorkspacePage() {
               <button
                 onClick={launchPreview}
                 disabled={previewState === 'starting'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-[1.02]"
                 style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}
                 title="Boot the generated app and open it in your browser"
               >
@@ -395,7 +396,7 @@ export default function ProjectWorkspacePage() {
                     ? <Eye className="w-3 h-3" />
                     : <Play className="w-3 h-3" />}
                 {previewState === 'starting' ? 'Booting...'
-                  : previewState === 'ready' ? 'Open Preview'
+                  : previewState === 'ready' ? 'Preview Ready'
                   : 'Live Preview'}
               </button>
               {previewUrl && previewState === 'ready' && (

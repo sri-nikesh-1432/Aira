@@ -1,5 +1,5 @@
 """
-AIRA Live Preview — boots the generated project so the user can
+☀️ AIRA Live Preview — boots the generated project so the user can
 actually open, use, and test it in the browser.
 
 Each project gets its OWN unique preview. Starting a new preview
@@ -12,6 +12,7 @@ Flow:
 """
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -52,16 +53,31 @@ def _url_ready(url: str, timeout: float = 3.0) -> bool:
 
 
 def _find_generated_project(output_dir: str) -> Optional[str]:
-    """Return the path to the generated project folder (04_Development/<name>)."""
+    """Return the path to the generated project folder (04_Development/<name>).
+    Tries multiple naming patterns to find the most complete project."""
     if not output_dir:
         return None
     dev = os.path.join(output_dir, "04_Development")
     if not os.path.isdir(dev):
+        # Fallback: check if there's a frontend/ dir directly in output_dir
+        if os.path.isdir(os.path.join(output_dir, "frontend")):
+            return output_dir
         return None
+
+    candidates = []
     for name in sorted(os.listdir(dev)):
         d = os.path.join(dev, name)
         if os.path.isdir(d) and not name.startswith(".") and not name.startswith("_"):
-            return d
+            # Check for frontend/backend to pick the most complete one
+            has_fe = os.path.isdir(os.path.join(d, "frontend"))
+            has_be = os.path.isdir(os.path.join(d, "backend"))
+            score = (2 if has_fe else 0) + (1 if has_be else 0)
+            candidates.append((score, d))
+
+    if candidates:
+        candidates.sort(key=lambda x: -x[0])
+        return candidates[0][1]
+
     return None
 
 
@@ -104,11 +120,11 @@ def _spawn_backend(project_dir: str, port: int, gemini_key: str, frontend_port: 
     env["GEMINI_API_KEY"] = gemini_key or env.get("GEMINI_API_KEY", "")
     env["CORS_ORIGINS"] = f"http://localhost:{frontend_port},http://127.0.0.1:{frontend_port}"
     env["DEBUG"] = "false"
-    
+
     creation_flags = 0
     if _is_windows():
         creation_flags = subprocess.CREATE_NO_WINDOW
-    
+
     return subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", str(port)],
         cwd=be_dir,
@@ -126,11 +142,11 @@ def _spawn_frontend(project_dir: str, port: int, backend_port: int, log_file) ->
         return None
     env = os.environ.copy()
     env["NEXT_PUBLIC_API_URL"] = f"http://localhost:{backend_port}"
-    
+
     creation_flags = 0
     if _is_windows():
         creation_flags = subprocess.CREATE_NO_WINDOW
-    
+
     cmd = [_npm_cmd(), "run", "dev", "--", "-p", str(port), "-H", "0.0.0.0"]
     return subprocess.Popen(
         cmd,
@@ -156,13 +172,15 @@ def get_preview(project_id: str) -> dict:
         elif info.get("install_error"):
             info["status"] = "error"
             info["error"] = info["install_error"]
-        elif time.time() - info.get("started_ts", time.time()) > 300:
+        elif time.time() - info.get("started_ts", time.time()) > 600:
             info["status"] = "error"
             info["error"] = "Timed out while preparing the preview."
     elif info.get("status") == "ready":
         if not _url_ready(info.get("frontend_url", ""), timeout=3):
-            info["status"] = "stopped"
-            info["message"] = "Preview server is no longer reachable."
+            # Check once more before declaring stopped
+            if not _url_ready(info.get("frontend_url", ""), timeout=5):
+                info["status"] = "stopped"
+                info["message"] = "Preview server is no longer reachable."
 
     return info
 

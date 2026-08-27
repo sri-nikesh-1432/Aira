@@ -1,104 +1,35 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
-import {
-  ArrowLeft, Globe, Sparkles, ChevronRight, Brain,
-  Layers, Palette, Code2, TrendingUp, FileText, Shield,
-  Zap, Rocket, Search, X, ArrowUpRight,
-} from 'lucide-react'
-import { PLANETS, type PlanetId, type PlanetStatus } from '@/types'
+import { ArrowLeft, Sparkles, ArrowUpRight, Zap } from 'lucide-react'
+import { PLANETS, type PlanetId } from '@/types'
 import { checkHealth } from '@/lib/api'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { clsx } from 'clsx'
 
-const PLANET_ICONS: Record<string, any> = {
-  mercury: Search, mars: Layers, venus: Palette, earth: Code2,
-  jupiter: TrendingUp, saturn: FileText, neptune: Shield,
-  uranus: Zap, pluto: Rocket,
-}
-
-const PLANET_DETAILED_INFO: Record<string, {
-  description: string
-  capabilities: string[]
-  outputs: string[]
-  connections: string[]
-  processSteps: string[]
+const PLANET_WORKSPACE_INFO: Record<string, {
+  capability: string
+  action: string
+  tagColor: string
 }> = {
-  mercury: {
-    description: 'Mercury is the Research & Intelligence planet. Before any innovation begins, Mercury deeply understands the problem space, market, competitors, and technology landscape.',
-    capabilities: ['Domain Research', 'Competitor Analysis', 'Market Sizing', 'Technology Scouting', 'Patent Research', 'MSME Compliance'],
-    outputs: ['Research_Report.md', 'MSME_Compliance.md', 'Technology_Report.md', 'Competitor_Analysis.md'],
-    connections: ['mars', 'venus', 'jupiter'],
-    processSteps: ['Analyze project domain', 'Research competitors & patents', 'Evaluate MSME alignment', 'Recommend tech stack', 'Deliver intelligence package'],
-  },
-  mars: {
-    description: 'Mars is the Architecture & Planning planet — the CTO of AIRA OS. It transforms research into engineering blueprints, designing the complete technical system.',
-    capabilities: ['System Architecture', 'Database Schema', 'API Design', 'AI Pipeline Design', 'Security Architecture', 'Folder Structure'],
-    outputs: ['Architecture.md', 'API_Design.md', 'Database_Schema.md'],
-    connections: ['mercury', 'venus', 'earth'],
-    processSteps: ['Design system components', 'Create database schema', 'Design API endpoints', 'Plan AI pipeline', 'Deliver technical blueprint'],
-  },
-  venus: {
-    description: 'Venus is the UI/UX & Experience planet. It designs everything users see, touch, and feel — from brand identity to pixel-perfect interfaces.',
-    capabilities: ['Design System', 'Brand Identity', 'User Personas', 'Screen Layouts', 'Component Library', 'Animation Design'],
-    outputs: ['Design_System.md', 'Brand_Guide.md', 'Screen_Designs.md', 'Component_Library.md'],
-    connections: ['mars', 'earth', 'saturn'],
-    processSteps: ['Define brand identity', 'Create color palette & typography', 'Design component system', 'Map user journeys', 'Deliver experience package'],
-  },
-  earth: {
-    description: 'Earth is the Development & Engineering planet. It takes architecture and design, and builds the actual product — complete, working, production-ready code.',
-    capabilities: ['Full-Stack Code Generation', 'Frontend (Next.js)', 'Backend (FastAPI)', 'Database Integration', 'Authentication', 'Docker Config'],
-    outputs: ['frontend/src/app/page.tsx', 'backend/main.py', 'docker-compose.yml', 'README.md'],
-    connections: ['mars', 'venus', 'neptune', 'pluto'],
-    processSteps: ['Generate project structure', 'Build frontend with Next.js', 'Build backend with FastAPI', 'Add auth & database', 'Create Docker configuration'],
-  },
-  jupiter: {
-    description: 'Jupiter is the Business Strategy planet. It transforms technically feasible projects into commercially viable businesses with clear paths to revenue.',
-    capabilities: ['Business Model', 'Market Analysis', 'Revenue Strategy', 'Financial Projections', 'Go-to-Market Plan', 'Investor Pitch'],
-    outputs: ['Business_Plan.md', 'Revenue_Model.md', 'Market_Analysis.md'],
-    connections: ['mercury', 'saturn', 'pluto'],
-    processSteps: ['Define business model', 'Analyze market opportunity', 'Create pricing strategy', 'Build financial projections', 'Deliver startup strategy'],
-  },
-  saturn: {
-    description: 'Saturn is the Documentation planet. It transforms complex systems into clear, professional documentation that anyone can understand.',
-    capabilities: ['Technical Reports', 'Judge Preparation', 'Presentation Deck', 'User Manuals', 'API Documentation', 'Compliance Docs'],
-    outputs: ['Technical_Report.md', 'Judge_Preparation.md', 'Presentation_Outline.md'],
-    connections: ['venus', 'jupiter', 'neptune'],
-    processSteps: ['Write executive summary', 'Create technical overview', 'Prepare judge Q&A', 'Build presentation outline', 'Deliver documentation suite'],
-  },
-  neptune: {
-    description: 'Neptune is the Quality Assurance planet. It validates everything — ensuring every product is correct, secure, and production-ready.',
-    capabilities: ['Test Strategy', 'Security Audit', 'Performance Testing', 'Accessibility Check', 'AI Validation', 'Production Readiness'],
-    outputs: ['QA_Report.md', 'Security_Report.md', 'Test_Plan.md'],
-    connections: ['earth', 'saturn', 'uranus'],
-    processSteps: ['Design test strategy', 'Run security checks', 'Validate AI outputs', 'Benchmark performance', 'Deliver production approval'],
-  },
-  uranus: {
-    description: 'Uranus is the Meta-Evolution planet. It learns from every mission, optimizing prompts, workflows, and architectures for future projects.',
-    capabilities: ['Pattern Recognition', 'Prompt Optimization', 'Workflow Improvement', 'Architecture Learning', 'Privacy-First Evolution'],
-    outputs: ['Evolution_Report.md', 'Optimization_Insights.md'],
-    connections: ['neptune', 'pluto', 'mercury'],
-    processSteps: ['Analyze mission patterns', 'Extract optimization insights', 'Improve prompt strategies', 'Learn architecture patterns', 'Deliver evolution report'],
-  },
-  pluto: {
-    description: 'Pluto is the Deployment & Operations planet. It ships code to production — Docker, CI/CD, cloud provisioning, and continuous operations.',
-    capabilities: ['Docker Config', 'CI/CD Pipeline', 'Cloud Deployment', 'Monitoring Setup', 'Auto-scaling', 'Health Checks'],
-    outputs: ['Deployment_Guide.md', '.github/workflows/deploy.yml', 'Production_Checklist.md'],
-    connections: ['earth', 'jupiter', 'uranus'],
-    processSteps: ['Create Docker configuration', 'Set up CI/CD pipeline', 'Configure cloud deployment', 'Set up monitoring', 'Deliver production system'],
-  },
+  mercury: { capability: 'Research & Intelligence', action: 'Run Research', tagColor: '#B5A9A9' },
+  mars: { capability: 'Architecture & Planning', action: 'Design System', tagColor: '#CF4B2B' },
+  venus: { capability: 'UI/UX & Experience', action: 'Design UI', tagColor: '#E8B86D' },
+  earth: { capability: 'Development & Engineering', action: 'Write Code', tagColor: '#4B9CD3' },
+  jupiter: { capability: 'Business Strategy', action: 'Build Strategy', tagColor: '#C8A951' },
+  saturn: { capability: 'Documentation', action: 'Create Docs', tagColor: '#A89070' },
+  neptune: { capability: 'Quality Assurance', action: 'Run Tests', tagColor: '#4B7BE8' },
+  uranus: { capability: 'Meta-Evolution', action: 'Analyze Patterns', tagColor: '#7EC8C8' },
+  pluto: { capability: 'Deployment & Operations', action: 'Deploy', tagColor: '#9B8EAE' },
 }
 
-// ─── Neural Network Canvas ────────────────────────────────────────────────────
-function PlanetsNeuralNetwork({ onSelect, selectedPlanet }: {
-  onSelect: (id: PlanetId) => void
-  selectedPlanet: PlanetId | null
-}) {
+// ─── Neural Network Canvas (lightweight, decorative) ─────────────────────────
+
+function PlanetsNeuralNetwork() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
-  const [hovered, setHovered] = useState<PlanetId | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -122,190 +53,102 @@ function PlanetsNeuralNetwork({ onSelect, selectedPlanet }: {
     const planets = PLANETS.filter(p => p.id !== 'aira')
     const planetNodes = planets.map((p, i) => {
       const angle = (i / planets.length) * Math.PI * 2 - Math.PI / 2
-      const orbitR = Math.min(W, H) * 0.35
+      const orbitR = Math.min(W, H) * 0.32
       return {
         id: p.id,
         x: cx + Math.cos(angle) * orbitR,
         y: cy + Math.sin(angle) * orbitR,
-        baseAngle: angle,
         color: p.color,
         name: p.name,
         symbol: p.symbol,
-        r: 14,
-        active: false,
+        r: 12,
       }
     })
 
-    const airaNode = { x: cx, y: cy, r: 22, color: '#FFD700' }
-
-    const handleMouse = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect()
-      const mx = e.clientX - rect.left
-      const my = e.clientY - rect.top
-
-      let found: PlanetId | null = null
-      const adx = mx - airaNode.x
-      const ady = my - airaNode.y
-      if (adx * adx + ady * ady < (airaNode.r + 10) ** 2) {
-        setHovered('aira')
-        return
-      }
-
-      for (const node of planetNodes) {
-        const dx = mx - node.x
-        const dy = my - node.y
-        if (dx * dx + dy * dy < (node.r + 8) ** 2) {
-          found = node.id as PlanetId
-          break
-        }
-      }
-      setHovered(found)
-    }
-
-    const handleClick = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect()
-      const mx = e.clientX - rect.left
-      const my = e.clientY - rect.top
-
-      for (const node of planetNodes) {
-        const dx = mx - node.x
-        const dy = my - node.y
-        if (dx * dx + dy * dy < (node.r + 8) ** 2) {
-          onSelect(node.id as PlanetId)
-          return
-        }
-      }
-      const adx = mx - airaNode.x
-      const ady = my - airaNode.y
-      if (adx * adx + ady * ady < (airaNode.r + 10) ** 2) {
-        onSelect('aira')
-      }
-    }
-
-    canvas.addEventListener('mousemove', handleMouse)
-    canvas.addEventListener('click', handleClick)
-    canvas.style.cursor = 'pointer'
+    const airaNode = { x: cx, y: cy, r: 20, color: '#FFD700' }
 
     let time = 0
     const animate = () => {
       ctx.clearRect(0, 0, W, H)
-      time += 0.005
+      time += 0.004
 
-      // Draw orbit rings
-      planetNodes.forEach((node, i) => {
-        const orbitR = Math.min(W, H) * 0.35 * ((i + 1) / planetNodes.length * 0.3 + 0.7)
+      // Orbit rings
+      planetNodes.forEach((_, i) => {
+        const orbitR = Math.min(W, H) * 0.32 * ((i + 1) / planetNodes.length * 0.3 + 0.7)
         ctx.beginPath()
         ctx.arc(cx, cy, orbitR, 0, Math.PI * 2)
-        ctx.strokeStyle = 'rgba(255,255,255,0.025)'
+        ctx.strokeStyle = 'rgba(255,255,255,0.02)'
         ctx.lineWidth = 0.5
         ctx.stroke()
       })
 
-      // Draw neural connections from AIRA to each planet
+      // Connections from AIRA
       planetNodes.forEach((node, i) => {
-        const isHovered = hovered === node.id
-        const isSelected = selectedPlanet === node.id
-        const isActive = isHovered || isSelected
-
         ctx.beginPath()
         ctx.moveTo(airaNode.x, airaNode.y)
-
         const midX = (airaNode.x + node.x) / 2
         const midY = (airaNode.y + node.y) / 2
-        const ctrlX = midX + Math.sin(time + i) * 15
-        const ctrlY = midY + Math.cos(time + i) * 15
-
+        const ctrlX = midX + Math.sin(time + i) * 12
+        const ctrlY = midY + Math.cos(time + i) * 12
         ctx.quadraticCurveTo(ctrlX, ctrlY, node.x, node.y)
-        ctx.strokeStyle = isActive ? node.color + '70' : node.color + '18'
-        ctx.lineWidth = isActive ? 1.8 : 0.8
+        ctx.strokeStyle = node.color + '12'
+        ctx.lineWidth = 0.7
         ctx.stroke()
 
-        const t = (time * 0.3 + i * 0.15) % 1
+        // Data pulse
+        const t = (time * 0.25 + i * 0.12) % 1
         const px = (1 - t) * (1 - t) * airaNode.x + 2 * (1 - t) * t * ctrlX + t * t * node.x
         const py = (1 - t) * (1 - t) * airaNode.y + 2 * (1 - t) * t * ctrlY + t * t * node.y
-
         ctx.beginPath()
-        ctx.arc(px, py, isActive ? 2.5 : 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = node.color + (isActive ? 'BB' : '55')
+        ctx.arc(px, py, 1.5, 0, Math.PI * 2)
+        ctx.fillStyle = node.color + '30'
         ctx.fill()
       })
 
-      // Inter-planet connections
-      for (let i = 0; i < planetNodes.length; i++) {
-        for (let j = i + 1; j < planetNodes.length; j++) {
-          const connections = PLANET_DETAILED_INFO[planetNodes[i].id]?.connections || []
-          if (connections.includes(planetNodes[j].id)) {
-            ctx.beginPath()
-            ctx.moveTo(planetNodes[i].x, planetNodes[i].y)
-            ctx.lineTo(planetNodes[j].x, planetNodes[j].y)
-            ctx.strokeStyle = 'rgba(255,255,255,0.02)'
-            ctx.lineWidth = 0.5
-            ctx.stroke()
-          }
-        }
-      }
-
-      // Draw planet nodes
+      // Planet nodes
       planetNodes.forEach((node) => {
-        const isHovered = hovered === node.id
-        const isSelected = selectedPlanet === node.id
-        const isActive = isHovered || isSelected
-        const r = isActive ? node.r + 4 : node.r
-
-        // Outer glow
-        const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, r * 2.5)
-        glow.addColorStop(0, node.color + (isActive ? '30' : '10'))
+        // Glow
+        const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.r * 2)
+        glow.addColorStop(0, node.color + '10')
         glow.addColorStop(1, 'transparent')
         ctx.beginPath()
-        ctx.arc(node.x, node.y, r * 2.5, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, node.r * 2, 0, Math.PI * 2)
         ctx.fillStyle = glow
         ctx.fill()
 
-        // Orbit ring
-        if (isActive) {
-          ctx.beginPath()
-          ctx.arc(node.x, node.y, r + 8, 0, Math.PI * 2)
-          ctx.strokeStyle = node.color + '44'
-          ctx.lineWidth = 1.2
-          ctx.setLineDash([3, 3])
-          ctx.stroke()
-          ctx.setLineDash([])
-        }
-
         // Core
         ctx.beginPath()
-        ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
-        const grad = ctx.createRadialGradient(node.x - r * 0.3, node.y - r * 0.3, 0, node.x, node.y, r)
+        ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2)
+        const grad = ctx.createRadialGradient(node.x - node.r * 0.3, node.y - node.r * 0.3, 0, node.x, node.y, node.r)
         grad.addColorStop(0, node.color)
-        grad.addColorStop(1, node.color + 'AA')
+        grad.addColorStop(1, node.color + '88')
         ctx.fillStyle = grad
         ctx.fill()
 
-        // Name label
-        ctx.font = `${isActive ? '600' : '500'} ${isActive ? 12 : 11}px Inter, sans-serif`
+        // Label
+        ctx.font = '500 10px Inter, sans-serif'
         ctx.textAlign = 'center'
-        ctx.fillStyle = isActive ? '#FAFAFA' : '#71717A'
-        ctx.fillText(node.name, node.x, node.y + r + 18)
+        ctx.fillStyle = '#52525B'
+        ctx.fillText(node.name, node.x, node.y + node.r + 15)
       })
 
-      // Draw AIRA core
-      const airaGlow = ctx.createRadialGradient(airaNode.x, airaNode.y, 0, airaNode.x, airaNode.y, airaNode.r * 3)
-      airaGlow.addColorStop(0, 'rgba(255,215,0,0.15)')
+      // AIRA core
+      const airaGlow = ctx.createRadialGradient(airaNode.x, airaNode.y, 0, airaNode.x, airaNode.y, airaNode.r * 2.5)
+      airaGlow.addColorStop(0, 'rgba(255,215,0,0.12)')
       airaGlow.addColorStop(1, 'transparent')
       ctx.beginPath()
-      ctx.arc(airaNode.x, airaNode.y, airaNode.r * 3, 0, Math.PI * 2)
+      ctx.arc(airaNode.x, airaNode.y, airaNode.r * 2.5, 0, Math.PI * 2)
       ctx.fillStyle = airaGlow
       ctx.fill()
 
-      // AIRA pulse ring
-      const pulseR = airaNode.r + 8 + Math.sin(time * 2) * 4
+      // Pulse
+      const pulseR = airaNode.r + 6 + Math.sin(time * 2) * 3
       ctx.beginPath()
       ctx.arc(airaNode.x, airaNode.y, pulseR, 0, Math.PI * 2)
-      ctx.strokeStyle = 'rgba(255,215,0,0.12)'
-      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(255,215,0,0.08)'
+      ctx.lineWidth = 0.8
       ctx.stroke()
 
-      // AIRA core
       ctx.beginPath()
       ctx.arc(airaNode.x, airaNode.y, airaNode.r, 0, Math.PI * 2)
       const airaGrad = ctx.createRadialGradient(
@@ -317,11 +160,10 @@ function PlanetsNeuralNetwork({ onSelect, selectedPlanet }: {
       ctx.fillStyle = airaGrad
       ctx.fill()
 
-      // AIRA label
-      ctx.font = '700 13px Inter, sans-serif'
+      ctx.font = '700 11px Inter, sans-serif'
       ctx.textAlign = 'center'
       ctx.fillStyle = '#FFD700'
-      ctx.fillText('AIRA', airaNode.x, airaNode.y + airaNode.r + 20)
+      ctx.fillText('AIRA', airaNode.x, airaNode.y + airaNode.r + 17)
 
       animRef.current = requestAnimationFrame(animate)
     }
@@ -330,225 +172,180 @@ function PlanetsNeuralNetwork({ onSelect, selectedPlanet }: {
     return () => {
       cancelAnimationFrame(animRef.current)
       window.removeEventListener('resize', resize)
-      canvas.removeEventListener('mousemove', handleMouse)
-      canvas.removeEventListener('click', handleClick)
     }
-  }, [hovered, selectedPlanet, onSelect])
+  }, [])
 
   return (
     <canvas
       ref={canvasRef}
       className="w-full h-full"
-      style={{ minHeight: '500px' }}
+      style={{ minHeight: '400px' }}
     />
   )
 }
 
-// ─── Planet Detail Panel ──────────────────────────────────────────────────────
-function PlanetDetailPanel({ planetId, onClose }: { planetId: PlanetId; onClose: () => void }) {
-  const planet = PLANETS.find(p => p.id === planetId)
-  const info = PLANET_DETAILED_INFO[planetId]
-  if (!planet || !info) return null
-
-  const Icon = PLANET_ICONS[planetId] || Globe
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-      className="w-[400px] flex-shrink-0 h-full overflow-y-auto border-l border-white/[0.05] p-6"
-      style={{ background: 'rgba(10,10,12,0.8)', backdropFilter: 'blur(20px)' }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-               style={{ background: `${planet.color}12`, border: `1px solid ${planet.color}25` }}>
-            <Icon className="w-5 h-5" style={{ color: planet.color }} />
-          </div>
-          <div>
-            <h2 className="font-bold text-base" style={{ color: planet.color }}>{planet.name}</h2>
-            <p className="text-xs" style={{ color: '#52525B' }}>{planet.title}</p>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/[0.04] transition-colors"
-                style={{ color: '#52525B' }}>
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Motto */}
-      <div className="p-3.5 rounded-xl mb-5" style={{ background: `${planet.color}06`, border: `1px solid ${planet.color}12` }}>
-        <p className="text-sm italic leading-relaxed" style={{ color: planet.color, opacity: 0.75 }}>&ldquo;{planet.motto}&rdquo;</p>
-      </div>
-
-      {/* Description */}
-      <div className="mb-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: '#3F3F46' }}>About</h3>
-        <p className="text-sm leading-relaxed" style={{ color: '#A1A1AA' }}>{info.description}</p>
-      </div>
-
-      {/* Capabilities */}
-      <div className="mb-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: '#3F3F46' }}>Capabilities</h3>
-        <div className="flex flex-wrap gap-1.5">
-          {info.capabilities.map((cap, i) => (
-            <span key={i} className="text-xs px-2.5 py-1 rounded-lg"
-                  style={{ background: `${planet.color}08`, color: planet.color, border: `1px solid ${planet.color}15` }}>
-              {cap}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Process Steps */}
-      <div className="mb-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: '#3F3F46' }}>Process</h3>
-        <div className="space-y-1.5">
-          {info.processSteps.map((step, i) => (
-            <div key={i} className="flex items-center gap-2.5">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
-                   style={{ background: `${planet.color}15`, color: planet.color }}>
-                {i + 1}
-              </div>
-              <p className="text-sm" style={{ color: '#A1A1AA' }}>{step}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Outputs */}
-      <div className="mb-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: '#3F3F46' }}>Generated Outputs</h3>
-        <div className="space-y-1">
-          {info.outputs.map((output, i) => (
-            <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <FileText className="w-3 h-3 flex-shrink-0" style={{ color: '#3F3F46' }} />
-              <span className="text-xs font-mono" style={{ color: '#71717A' }}>{output}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Connections */}
-      <div className="mb-5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: '#3F3F46' }}>Connected Planets</h3>
-        <div className="flex flex-wrap gap-1.5">
-          {info.connections.map((connId, i) => {
-            const connPlanet = PLANETS.find(p => p.id === connId)
-            if (!connPlanet) return null
-            return (
-              <span key={i} className="text-xs px-2.5 py-1 rounded-lg"
-                    style={{ background: 'rgba(255,255,255,0.03)', color: connPlanet.color, border: `1px solid ${connPlanet.color}15` }}>
-                {connPlanet.symbol} {connPlanet.name}
-              </span>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Voice */}
-      <div className="p-3.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.03)' }}>
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#3F3F46' }}>Voice</h3>
-        <p className="text-xs italic leading-relaxed" style={{ color: planet.color, opacity: 0.65 }}>
-          &ldquo;{planet.voice[0]}&rdquo;
-        </p>
-      </div>
-    </motion.div>
-  )
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function PlanetsPage() {
-  const [selectedPlanet, setSelectedPlanet] = useState<PlanetId | null>(null)
   const [apiOnline, setApiOnline] = useState<boolean | null>(null)
 
   useEffect(() => {
     checkHealth().then(setApiOnline)
   }, [])
 
-  const handleSelect = useCallback((id: PlanetId) => {
-    setSelectedPlanet(prev => prev === id ? null : id)
-  }, [])
+  const nonAiraPlanets = PLANETS.filter(p => p.id !== 'aira')
 
   return (
     <div className="flex min-h-screen" style={{ background: '#0a0a0c' }}>
       <Sidebar apiOnline={apiOnline} />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex items-center justify-between px-8 py-4 border-b border-white/[0.04]"
+        <header className="flex items-center justify-between px-8 py-5 border-b border-white/[0.04]"
                 style={{ background: 'rgba(10,10,12,0.8)', backdropFilter: 'blur(20px)' }}>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Neural Network</h1>
-            <p className="text-sm" style={{ color: '#52525B' }}>
-              Click any planet to explore its intelligence
+            <h1 className="text-2xl font-bold tracking-tight">
+              <span style={{ color: '#FFD700' }}>9 Planets</span>
+              <span style={{ color: '#3F3F46' }}> · </span>
+              <span style={{ color: '#52525B' }}>1 Mission</span>
+            </h1>
+            <p className="text-sm mt-0.5" style={{ color: '#3F3F46' }}>
+              Each planet works independently — click to run its full intelligence
             </p>
           </div>
           <Link href="/project/new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
             style={{ background: 'linear-gradient(135deg, #6366F1, #4F46E5)' }}>
             <Sparkles className="w-4 h-4" />
-            Launch Project
+            Launch All Planets
           </Link>
         </header>
 
-        {/* Content area */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Neural network canvas */}
-          <div className="flex-1 relative">
-            <PlanetsNeuralNetwork
-              onSelect={handleSelect}
-              selectedPlanet={selectedPlanet}
-            />
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-8 py-8">
+            {/* Neural Network Visual */}
+            <div className="rounded-2xl mb-10 overflow-hidden"
+                 style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', height: '420px' }}>
+              <PlanetsNeuralNetwork />
+            </div>
 
-            {/* Bottom planet bar */}
-            <div className="absolute bottom-0 left-0 right-0 px-8 py-3"
-                 style={{ background: 'linear-gradient(transparent, rgba(10,10,12,0.95))' }}>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleSelect('aira')}
-                  className={clsx(
-                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 text-xs',
-                    selectedPlanet === 'aira' ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
-                  )}
-                >
-                  <span>☀️</span>
-                  <span style={{ color: selectedPlanet === 'aira' ? '#FFD700' : '#52525B' }}>AIRA</span>
-                </button>
-                <div className="w-px h-4" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                {PLANETS.filter(p => p.id !== 'aira').map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelect(p.id as PlanetId)}
-                    className={clsx(
-                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 text-xs',
-                      selectedPlanet === p.id ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'
-                    )}
+            {/* AIRA Center Card */}
+            <div className="mb-10 p-6 rounded-2xl text-center"
+                 style={{
+                   background: 'linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,165,0,0.02))',
+                   border: '1px solid rgba(255,215,0,0.08)',
+                 }}>
+              <span className="text-3xl mb-3 block">☀️</span>
+              <h2 className="text-xl font-bold mb-1" style={{ color: '#FFD700' }}>AIRA</h2>
+              <p className="text-xs mb-2" style={{ color: '#C8A951' }}>Central Intelligence · CEO · Orchestrator</p>
+              <p className="text-sm italic max-w-lg mx-auto" style={{ color: '#71717A' }}>
+                &ldquo;I don&apos;t solve problems alone. I orchestrate intelligence.&rdquo;
+              </p>
+            </div>
+
+            {/* Section Title */}
+            <div className="mb-6">
+              <h2 className="text-lg font-bold tracking-tight">Self-Sufficient Planets</h2>
+              <p className="text-sm mt-0.5" style={{ color: '#3F3F46' }}>
+                Click any planet to open its standalone workspace — no AIRA required
+              </p>
+            </div>
+
+            {/* Planet Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {nonAiraPlanets.map((planet, i) => {
+                const info = PLANET_WORKSPACE_INFO[planet.id]
+                return (
+                  <motion.div
+                    key={planet.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.3 }}
                   >
-                    <span>{p.symbol}</span>
-                    <span style={{ color: selectedPlanet === p.id ? p.color : '#52525B' }}>
-                      {p.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
+                    <Link
+                      href={`/planets/${planet.id}`}
+                      className="group block rounded-2xl p-5 transition-all duration-300 hover:scale-[1.01]"
+                      style={{
+                        background: 'rgba(255,255,255,0.015)',
+                        border: '1px solid rgba(255,255,255,0.04)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = `${planet.color}06`
+                        e.currentTarget.style.borderColor = `${planet.color}20`
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.015)'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
+                      }}
+                    >
+                      {/* Top row */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all duration-300 group-hover:scale-110"
+                               style={{
+                                 background: `${planet.color}10`,
+                                 border: `1px solid ${planet.color}20`,
+                               }}>
+                            {planet.symbol}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm" style={{ color: planet.color }}>
+                              {planet.name}
+                            </h3>
+                            <p className="text-[10px]" style={{ color: '#52525B' }}>
+                              {info.capability}
+                            </p>
+                          </div>
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                                       style={{ color: '#27272A' }} />
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs leading-relaxed mb-4" style={{ color: '#52525B' }}>
+                        {planet.personality}
+                      </p>
+
+                      {/* Process steps preview */}
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {planet.voice.slice(0, 2).map((quote, qi) => (
+                          <span key={qi} className="text-[10px] px-2 py-0.5 rounded-md"
+                                style={{
+                                  background: 'rgba(255,255,255,0.03)',
+                                  color: '#3F3F46',
+                                  border: '1px solid rgba(255,255,255,0.03)',
+                                }}>
+                            &ldquo;{quote.slice(0, 50)}...&rdquo;
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Action bar */}
+                      <div className="flex items-center justify-between pt-3"
+                           style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg"
+                              style={{ background: `${planet.color}10`, color: planet.color }}>
+                          {info.action}
+                        </span>
+                        <span className="text-[10px] flex items-center gap-1"
+                              style={{ color: '#3F3F46' }}>
+                          <Zap className="w-2.5 h-2.5" />
+                          Standalone
+                        </span>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )
+              })}
+            </div>
+
+            {/* Bottom info */}
+            <div className="mt-12 text-center pb-8">
+              <p className="text-xs" style={{ color: '#27272A' }}>
+                Each planet is a fully self-contained AI agent — it researches, designs, codes, tests, deploys, and evolves completely on its own
+              </p>
             </div>
           </div>
-
-          {/* Detail panel */}
-          <AnimatePresence>
-            {selectedPlanet && (
-              <PlanetDetailPanel
-                planetId={selectedPlanet}
-                onClose={() => setSelectedPlanet(null)}
-              />
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </div>

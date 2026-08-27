@@ -51,15 +51,15 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#0a0a0c' }}>
+    <div className="flex min-h-screen bg-[#FAFAFA]">
       <Sidebar apiOnline={apiOnline} />
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-8 max-w-6xl">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
-              <p className="text-sm mt-1" style={{ color: '#52525B' }}>
+              <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Projects</h1>
+              <p className="text-sm mt-1 text-zinc-400">
                 Every mission AIRA has orchestrated
               </p>
             </div>
@@ -88,8 +88,8 @@ export default function ProjectsPage() {
                    style={{ background: 'rgba(99,102,241,0.08)' }}>
                 <FolderOpen className="w-7 h-7 text-primary" />
               </div>
-              <h2 className="text-xl font-bold mb-2">No projects yet</h2>
-              <p className="text-sm mb-6" style={{ color: '#52525B' }}>
+              <h2 className="text-xl font-bold mb-2 text-zinc-900">No projects yet</h2>
+              <p className="text-sm mb-6 text-zinc-400">
                 Launch your first mission and AIRA&apos;s planets will build it for you.
               </p>
               <Link href="/project/new"
@@ -119,10 +119,10 @@ export default function ProjectsPage() {
                     >
                       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: meta.color }} />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
+                        <p className="text-sm font-medium text-zinc-800 truncate">
                           {project.idea || 'AI Project'}
                         </p>
-                        <p className="text-[11px] mt-0.5" style={{ color: '#3F3F46' }}>
+                        <p className="text-[11px] mt-0.5 text-zinc-400">
                           {project.id.slice(0, 8)} &bull;{' '}
                           {project.created_at
                             ? formatDistanceToNow(new Date(project.created_at), { addSuffix: true })
@@ -138,8 +138,7 @@ export default function ProjectsPage() {
 
                     <button
                       onClick={() => router.push(`/project/${project.id}`)}
-                      className="p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors flex-shrink-0"
-                      style={{ color: '#3F3F46' }}
+                      className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0 text-zinc-400"
                       title="Open project"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -147,8 +146,7 @@ export default function ProjectsPage() {
                     <button
                       onClick={() => handleDelete(project.id)}
                       disabled={deleting === project.id}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0"
-                      style={{ color: '#3F3F46' }}
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 text-zinc-400 hover:text-red-500"
                       title="Delete project"
                     >
                       <Trash2 className={clsx('w-3.5 h-3.5', deleting === project.id && 'animate-pulse')} />
@@ -160,7 +158,7 @@ export default function ProjectsPage() {
           )}
 
           {!loading && projects.length > 0 && (
-            <p className="flex items-center gap-2 text-[11px] mt-5" style={{ color: '#3F3F46' }}>
+            <p className="flex items-center gap-2 text-[11px] mt-5 text-zinc-400">
               <Brain className="w-3 h-3" />
               Generated projects are saved under backend/outputs/ and can be downloaded from each project&apos;s workspace.
             </p>

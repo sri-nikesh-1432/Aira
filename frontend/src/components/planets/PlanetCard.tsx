@@ -43,10 +43,10 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
       onClick={onClick}
       className={clsx(
         'relative flex items-start gap-3 p-3.5 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden',
-        isActive && 'border-primary/40 bg-primary/5',
-        isDone && !isActive && 'border-secondary/20 bg-secondary/5',
-        status === 'error' && 'border-error/20 bg-error/5',
-        !isActive && !isDone && status !== 'error' && 'border-border hover:border-border/60 bg-surface/50'
+        isActive && 'border-primary/40 bg-indigo-50',
+        isDone && !isActive && 'border-emerald-200 bg-emerald-50/50',
+        status === 'error' && 'border-red-200 bg-red-50/50',
+        !isActive && !isDone && status !== 'error' && 'border-zinc-200 hover:border-zinc-300 bg-white hover:bg-zinc-50'
       )}
     >
       {/* Active pulse bar */}
@@ -65,7 +65,7 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
       <div
         className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold transition-all"
         style={{
-          background: lit ? `${planet.color}22` : 'rgba(255,255,255,0.04)',
+          background: lit ? `${planet.color}15` : '#F4F4F5',
           border: `1px solid ${lit ? planet.color + '44' : 'transparent'}`,
           boxShadow: isProcessing ? `0 0 18px ${planet.color}55` : undefined,
         }}
@@ -82,7 +82,7 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
             <span
               className={clsx(
                 'text-sm font-semibold transition-colors truncate',
-                lit ? 'text-white' : 'text-text-secondary'
+                lit ? 'text-zinc-900' : 'text-zinc-600'
               )}
             >
               {planet.name}
@@ -106,7 +106,7 @@ export function PlanetCard({ planet, status, message, quip, onClick, isActive }:
 
         {/* Live message */}
         {message && (isProcessing || isDone) && (
-          <p className="text-xs mt-2 text-text-secondary leading-relaxed line-clamp-2">
+          <p className="text-xs mt-2 text-zinc-500 leading-relaxed line-clamp-2">
             {message}
           </p>
         )}

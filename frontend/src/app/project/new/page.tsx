@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import Link from 'next/link'
 import {
   Brain, Send, Upload, X, Sparkles, ChevronDown, ChevronRight,
-  Loader2, AlertCircle, Lightbulb,
+  Loader2, AlertCircle, Lightbulb, ArrowLeft,
 } from 'lucide-react'
-import { SolarSystem } from '@/components/planets/SolarSystem'
 import { createProject, uploadFile, checkHealth } from '@/lib/api'
 import { PLANETS } from '@/types'
 import { clsx } from 'clsx'
@@ -79,10 +77,8 @@ export default function NewProjectPage() {
       setError('Please describe your project idea')
       return
     }
-
     setIsSubmitting(true)
     setError('')
-
     try {
       const result = await createProject({
         idea: idea.trim(),
@@ -99,246 +95,180 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#0a0a0c' }}>
+    <div className="min-h-screen bg-[#FAFAFA]">
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4"
-              style={{ background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-               style={{ background: 'rgba(255,215,0,0.08)', boxShadow: '0 0 16px rgba(255,215,0,0.06)' }}>
+      <header className="flex items-center justify-between px-8 py-4 bg-white/80 backdrop-blur-xl border-b border-zinc-200">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
             <span className="text-base">☀️</span>
           </div>
           <div>
-            <p className="font-bold text-[13px] text-white leading-none">AIRA OS</p>
-            <p className="text-[10px] text-[#3F3F46] leading-none mt-0.5">Multi-Agent AI</p>
+            <p className="font-bold text-[13px] text-zinc-900 leading-none">AIRA OS</p>
+            <p className="text-[10px] text-zinc-400 leading-none mt-0.5">Multi-Agent AI</p>
           </div>
         </Link>
-        <p className="text-sm" style={{ color: '#52525B' }}>New Project</p>
+        <p className="text-sm text-zinc-400">New Project</p>
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-
           {/* Left: Form */}
           <div>
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <h1 className="text-3xl font-bold tracking-tight mb-1">
-                Start a New
-                <span className="text-gradient"> Project</span>
-              </h1>
-              <p className="text-sm mb-8" style={{ color: '#52525B' }}>
-                Describe your idea and AIRA will orchestrate all 9 specialized AI planets to build it end-to-end.
+            <h1 className="text-3xl font-bold tracking-tight mb-1 text-zinc-900">
+              Start a New <span className="text-gradient">Project</span>
+            </h1>
+            <p className="text-sm mb-8 text-zinc-500">
+              Describe your idea and AIRA will orchestrate all 9 specialized AI planets to build it end-to-end.
+            </p>
+
+            {/* Main idea input */}
+            <div className="mb-4">
+              <label className="label">Project Idea *</label>
+              <textarea
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                placeholder="Describe what you want to build... e.g., 'Build an AI Healthcare Assistant for MSME clinics with voice support and patient management'"
+                rows={5}
+                className="input-field resize-none text-sm leading-relaxed"
+              />
+              <p className="text-[11px] mt-1.5 text-zinc-400">
+                Be descriptive — the more context you give, the better the output.
               </p>
+            </div>
 
-              {/* Main idea input */}
-              <div className="mb-4">
-                <label className="label">Project Idea *</label>
-                <textarea
-                  value={idea}
-                  onChange={(e) => setIdea(e.target.value)}
-                  placeholder="Describe what you want to build... e.g., 'Build an AI Healthcare Assistant for MSME clinics with voice support and patient management'"
-                  rows={5}
-                  className="input-field resize-none text-sm leading-relaxed"
-                />
-                <p className="text-[11px] mt-1.5" style={{ color: '#3F3F46' }}>
-                  Be descriptive — the more context you give, the better the output.
-                </p>
+            {/* Example ideas */}
+            <div className="mb-6">
+              <p className="text-[11px] mb-1.5 flex items-center gap-1 text-zinc-400">
+                <Lightbulb className="w-3 h-3" /> Example ideas:
+              </p>
+              <div className="space-y-1">
+                {EXAMPLE_IDEAS.slice(0, 3).map((ex, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setIdea(ex)}
+                    className="w-full text-left text-xs px-3 py-2 rounded-lg bg-white border border-zinc-200 hover:border-zinc-300 transition-all"
+                  >
+                    <ChevronRight className="w-3 h-3 inline mr-1 text-zinc-300" />
+                    <span className="text-zinc-500">{ex}</span>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Example ideas */}
-              <div className="mb-6">
-                <p className="text-[11px] mb-1.5 flex items-center gap-1" style={{ color: '#3F3F46' }}>
-                  <Lightbulb className="w-3 h-3" /> Example ideas:
+            {/* File upload */}
+            <div className="mb-4">
+              <label className="label">Upload Files (Optional)</label>
+              <div
+                {...getRootProps()}
+                className={clsx(
+                  'border border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
+                  isDragActive ? 'border-indigo-400 bg-indigo-50' : 'border-zinc-300 hover:border-indigo-300 bg-white'
+                )}
+              >
+                <input {...getInputProps()} />
+                <Upload className="w-7 h-7 mx-auto mb-2 text-zinc-300" />
+                <p className="text-sm text-zinc-500">
+                  {isDragActive ? 'Drop files here' : 'Drag MSME PDFs, PPTs, docs here, or click to browse'}
                 </p>
-                <div className="space-y-1">
-                  {EXAMPLE_IDEAS.slice(0, 3).map((ex, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setIdea(ex)}
-                      className="w-full text-left text-xs px-3 py-2 rounded-lg glass-card transition-all"
-                    >
-                      <ChevronRight className="w-3 h-3 inline mr-1" style={{ color: '#3F3F46' }} />
-                      <span style={{ color: '#52525B' }}>{ex}</span>
-                    </button>
+                <p className="text-[11px] mt-1 text-zinc-400">PDF, PPT, DOCX, TXT &bull; Max 5 files</p>
+              </div>
+              {uploadedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {uploadedFiles.map((f, i) => (
+                    <span key={i} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200">
+                      {f.name}
+                      <button onClick={() => setUploadedFiles(prev => prev.filter((_, j) => j !== i))}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
                   ))}
                 </div>
-              </div>
-
-              {/* File upload */}
-              <div className="mb-4">
-                <label className="label">Upload Files (Optional)</label>
-                <div
-                  {...getRootProps()}
-                  className={clsx(
-                    'border border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
-                    isDragActive ? 'border-primary bg-primary/5' : 'hover:border-primary/30'
-                  )}
-                  style={{ borderColor: isDragActive ? '#6366F1' : 'rgba(255,255,255,0.06)' }}
-                >
-                  <input {...getInputProps()} />
-                  <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: '#3F3F46' }} />
-                  <p className="text-sm" style={{ color: '#52525B' }}>
-                    {isDragActive ? 'Drop files here' : 'Drag MSME PDFs, PPTs, docs here, or click to browse'}
-                  </p>
-                  <p className="text-[11px] mt-1" style={{ color: '#27272A' }}>PDF, PPT, DOCX, TXT &bull; Max 5 files</p>
-                </div>
-                {uploadedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {uploadedFiles.map((f, i) => (
-                      <span key={i} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg"
-                            style={{ background: 'rgba(16,185,129,0.08)', color: '#10B981', border: '1px solid rgba(16,185,129,0.15)' }}>
-                        {f.name}
-                        <button onClick={() => setUploadedFiles(prev => prev.filter((_, j) => j !== i))}>
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Advanced options */}
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-1.5 text-sm transition-colors mb-3"
-                style={{ color: '#52525B' }}
-              >
-                <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform', showAdvanced && 'rotate-180')} />
-                Advanced Options
-              </button>
-
-              <AnimatePresence>
-                {showAdvanced && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-2.5 pb-4">
-                      <div>
-                        <label className="label">MSME / Hackathon Theme</label>
-                        <select
-                          value={msmeTheme}
-                          onChange={(e) => setMsmeTheme(e.target.value)}
-                          className="input-field text-sm"
-                        >
-                          <option value="">Select theme...</option>
-                          {MSME_THEMES.map((t) => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">Target Audience</label>
-                        <input
-                          value={targetAudience}
-                          onChange={(e) => setTargetAudience(e.target.value)}
-                          placeholder="e.g., Small manufacturers, rural clinics, college students"
-                          className="input-field text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Technology Preferences</label>
-                        <input
-                          value={techPreferences}
-                          onChange={(e) => setTechPreferences(e.target.value)}
-                          placeholder="e.g., React, Python, open source only"
-                          className="input-field text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Competition / Event Name</label>
-                        <input
-                          value={competitionName}
-                          onChange={(e) => setCompetitionName(e.target.value)}
-                          placeholder="e.g., MSME Innovation Challenge 2026"
-                          className="input-field text-sm"
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Error */}
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-4"
-                     style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444' }}>
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {error}
-                </div>
               )}
+            </div>
 
-              {/* Submit */}
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !idea.trim()}
-                className={clsx(
-                  'w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all',
-                  isSubmitting || !idea.trim()
-                    ? 'opacity-40 cursor-not-allowed'
-                    : 'text-white hover:scale-[1.01] hover:shadow-glow-primary'
-                )}
-                style={{
-                  background: isSubmitting || !idea.trim() ? '#18181B' : 'linear-gradient(135deg, #6366F1, #4F46E5)',
-                }}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Launching AIRA...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Launch AIRA Pipeline
-                    <Send className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+            {/* Advanced options */}
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 text-sm transition-colors mb-3 text-zinc-500 hover:text-zinc-700"
+            >
+              <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform', showAdvanced && 'rotate-180')} />
+              Advanced Options
+            </button>
 
-              {/* API Status */}
-              {apiOnline === false && (
-                <p className="text-[11px] text-center mt-3" style={{ color: '#F59E0B' }}>
-                  ⚠️ Backend API appears offline. Make sure it&apos;s running on port 8000.
-                </p>
+            {showAdvanced && (
+              <div className="space-y-2.5 pb-4">
+                <div>
+                  <label className="label">MSME / Hackathon Theme</label>
+                  <select value={msmeTheme} onChange={(e) => setMsmeTheme(e.target.value)} className="input-field text-sm">
+                    <option value="">Select theme...</option>
+                    {MSME_THEMES.map((t) => (<option key={t} value={t}>{t}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Target Audience</label>
+                  <input value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)}
+                    placeholder="e.g., Small manufacturers, rural clinics, college students" className="input-field text-sm" />
+                </div>
+                <div>
+                  <label className="label">Technology Preferences</label>
+                  <input value={techPreferences} onChange={(e) => setTechPreferences(e.target.value)}
+                    placeholder="e.g., React, Python, open source only" className="input-field text-sm" />
+                </div>
+                <div>
+                  <label className="label">Competition / Event Name</label>
+                  <input value={competitionName} onChange={(e) => setCompetitionName(e.target.value)}
+                    placeholder="e.g., MSME Innovation Challenge 2026" className="input-field text-sm" />
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-4 bg-red-50 border border-red-200 text-red-600">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !idea.trim()}
+              className={clsx(
+                'w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all',
+                isSubmitting || !idea.trim()
+                  ? 'opacity-40 cursor-not-allowed bg-zinc-200 text-zinc-400'
+                  : 'text-white hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-0.5'
               )}
-            </motion.div>
+              style={!isSubmitting && idea.trim() ? { background: 'linear-gradient(135deg, #6366F1, #4F46E5)' } : {}}
+            >
+              {isSubmitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Launching AIRA...</>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> Launch AIRA Pipeline <Send className="w-4 h-4" /></>
+              )}
+            </button>
+
+            {apiOnline === false && (
+              <p className="text-[11px] text-center mt-3 text-amber-500">
+                ⚠️ Backend API appears offline. Make sure it&apos;s running on port 8000.
+              </p>
+            )}
           </div>
 
-          {/* Right: Solar system preview + info */}
-          <div className="flex flex-col items-center gap-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.15 }}
-            >
-              <SolarSystem
-                planetStatuses={Object.fromEntries(PLANETS.map((p) => [p.id, 'idle']))}
-                size="md"
-              />
-            </motion.div>
-
-            {/* Pipeline steps */}
-            <div className="w-full space-y-1">
-              {PLANETS.map((step, i) => (
-                <motion.div
-                  key={step.id}
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.03 * i }}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl glass-card"
-                >
-                  <span className="text-base w-7 text-center">{step.symbol}</span>
-                  <div className="min-w-0">
-                    <span className="text-xs font-semibold" style={{ color: step.color }}>
-                      {step.name}
-                    </span>
-                    <p className="text-[11px] truncate" style={{ color: '#3F3F46' }}>
+          {/* Right: Pipeline steps */}
+          <div className="flex flex-col gap-4">
+            <div className="text-center mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1">What Happens Next</p>
+              <p className="text-[11px] text-zinc-300">10 AI agents work in sequence</p>
+            </div>
+            <div className="space-y-2">
+              {PLANETS.map((step) => (
+                <div key={step.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-zinc-200">
+                  <span className="text-lg w-8 text-center">{step.symbol}</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-semibold" style={{ color: step.color }}>{step.name}</span>
+                    <p className="text-[11px] text-zinc-400 truncate">
                       {step.id === 'aira' && 'Understands your goal & orchestrates every planet'}
                       {step.id === 'mercury' && 'Researches domain, competitors, patents, MSME rules'}
                       {step.id === 'mars' && 'Designs system architecture & tech stack'}
@@ -351,7 +281,7 @@ export default function NewProjectPage() {
                       {step.id === 'pluto' && 'Produces Docker, CI/CD & deployment config'}
                     </p>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>

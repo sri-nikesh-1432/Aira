@@ -318,9 +318,8 @@ export default function ProjectWorkspacePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090B' }}>
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-4" />
-          <p style={{ color: '#71717A' }}>Loading project...</p>
+        <div className="text-center">              <div className="w-16 h-16 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Loading project...</p>
         </div>
       </div>
     )
@@ -329,9 +328,8 @@ export default function ProjectWorkspacePage() {
   if (!project) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090B' }}>
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 mx-auto mb-4" style={{ color: '#EF4444' }} />
-          <p className="text-lg font-semibold">Project not found</p>
+        <div className="text-center">              <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <p className="text-lg font-semibold text-zinc-900">Project not found</p>
           <button onClick={() => router.push('/dashboard')} className="btn-ghost mt-4">Back</button>
         </div>
       </div>
@@ -357,19 +355,18 @@ export default function ProjectWorkspacePage() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#09090B' }}>
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA]">
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30"
-              style={{ background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <header className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-zinc-200">
         <button onClick={() => router.push('/dashboard')}
-                className="p-2 rounded-lg hover:bg-white/[0.05] transition-colors" style={{ color: '#71717A' }}>
+                className="p-2 rounded-lg hover:bg-zinc-100 transition-colors text-zinc-400">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-base truncate">
+          <h1 className="font-bold text-base truncate text-zinc-900">
             {project.final_output?.project_title || project.request?.idea?.slice(0, 60) || 'AI Project'}
           </h1>
-          <p className="text-xs truncate" style={{ color: '#52525B' }}>{project.request?.idea}</p>
+          <p className="text-xs truncate text-zinc-400">{project.request?.idea}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
@@ -423,8 +420,8 @@ export default function ProjectWorkspacePage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <aside className="w-72 flex-shrink-0 border-r border-white/[0.06] flex flex-col overflow-hidden">
-          <div className="p-3 flex justify-center border-b border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.01)' }}>
+        <aside className="w-72 flex-shrink-0 border-r border-zinc-200 flex flex-col overflow-hidden bg-white">
+          <div className="p-3 flex justify-center border-b border-zinc-100">
             <SolarSystem
               planetStatuses={project.planet_statuses}
               onPlanetClick={(id) => setActivePlanet(id === activePlanet ? null : id)}
@@ -472,8 +469,7 @@ export default function ProjectWorkspacePage() {
         {/* Main area */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Tabs */}
-          <div className="flex items-center gap-1 px-4 py-2 border-b border-white/[0.06] overflow-x-auto flex-shrink-0"
-               style={{ background: 'rgba(255,255,255,0.01)' }}>
+          <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-200 overflow-x-auto flex-shrink-0 bg-white">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -484,7 +480,7 @@ export default function ProjectWorkspacePage() {
                     ? 'bg-primary/10 text-primary border border-primary/20'
                     : 'hover:text-white hover:bg-white/[0.04]'
                 )}
-                style={activeTab !== tab.id ? { color: '#52525B' } : {}}
+                style={activeTab !== tab.id ? { color: '#71717A' } : {}}
               >
                 <tab.icon className="w-3.5 h-3.5" />
                 {tab.label}
@@ -670,9 +666,9 @@ function AIRAComputer({
               </pre>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <Code2 className="w-12 h-12 mb-4" style={{ color: '#27272A' }} />
-                <p className="font-medium" style={{ color: '#52525B' }}>Select a file to view its contents</p>
-                <p className="text-sm mt-1" style={{ color: '#3F3F46' }}>
+                <Code2 className="w-12 h-12 mb-4 text-zinc-300" />
+                <p className="font-medium text-zinc-500">Select a file to view its contents</p>
+                <p className="text-sm mt-1 text-zinc-400">
                   {isRunning ? 'Files will appear as planets complete their work' : 'Click any file in the explorer'}
                 </p>
               </div>
@@ -681,7 +677,7 @@ function AIRAComputer({
         )}
 
         {panel === 'terminal' && (
-          <div ref={termRef} className="flex-1 overflow-auto p-4 font-mono text-xs" style={{ background: '#09090B' }}>
+          <div ref={termRef} className="flex-1 overflow-auto p-4 font-mono text-xs bg-zinc-50">
             {terminalLines.map((line, i) => (
               <div key={i} className={clsx(
                 'leading-relaxed',
@@ -724,7 +720,7 @@ function AIRAComputer({
                 </p>
                 <button onClick={onLaunchPreview} disabled={!isCompleted}
                   className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
-                  style={{ background: isCompleted ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : '#18181B' }}>
+                  style={{ background: isCompleted ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : '#E4E4E7' }}>
                   <Play className="w-4 h-4" />
                   {isCompleted ? 'Start Live Preview' : 'Waiting for project to complete...'}
                 </button>
@@ -828,18 +824,16 @@ function PlanetsTab({ events, project, logRef }: {
     <div className="h-full overflow-y-auto p-6" ref={logRef}>
       <div className="max-w-2xl mx-auto space-y-3">
         {/* Mission brief */}
-        <div className="p-4 rounded-2xl mb-6"
-             style={{ background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.12)' }}>
+        <div className="p-4 rounded-2xl mb-6 bg-amber-50 border border-amber-200/60">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl"
-                 style={{ background: 'rgba(255,215,0,0.1)' }}>☀️</div>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl bg-amber-100">☀️</div>
             <div>
-              <p className="font-bold text-sm" style={{ color: '#FFD700' }}>AIRA Core</p>
-              <p className="text-xs" style={{ color: '#52525B' }}>Central Intelligence • Orchestrator</p>
+              <p className="font-bold text-sm text-amber-700">AIRA Core</p>
+              <p className="text-xs text-zinc-400">Central Intelligence • Orchestrator</p>
             </div>
           </div>
-          <p className="text-xs italic" style={{ color: '#52525B' }}>"I don't solve problems alone. I orchestrate intelligence."</p>
-          <p className="text-sm mt-2"><span style={{ color: '#52525B' }}>Mission: </span>{project.request?.idea}</p>
+          <p className="text-xs italic text-zinc-400">"I don't solve problems alone. I orchestrate intelligence."</p>
+          <p className="text-sm mt-2"><span className="text-zinc-400">Mission: </span>{project.request?.idea}</p>
         </div>
 
         <AnimatePresence initial={false}>
@@ -879,14 +873,13 @@ function PlanetsTab({ events, project, logRef }: {
 
         {project.status === 'completed' && project.final_output?.validation && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="p-4 rounded-2xl mt-4"
-            style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.2)' }}>
+            className="p-4 rounded-2xl mt-4 bg-emerald-50 border border-emerald-200">
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-5 h-5 text-emerald-500" />
               <p className="font-bold text-emerald-500">Mission Complete</p>
             </div>
-            <p className="text-sm" style={{ color: '#A1A1AA' }}>{project.final_output.validation.aira_final_note}</p>
-            <p className="text-xs mt-2" style={{ color: '#52525B' }}>
+            <p className="text-sm text-zinc-500">{project.final_output.validation.aira_final_note}</p>
+            <p className="text-xs mt-2 text-zinc-400">
               {project.final_output.validation.planets_completed}/9 planets • Quality: {project.final_output.validation.quality_score}%
             </p>
           </motion.div>
@@ -911,10 +904,9 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
   }
 
   if (data.status === 'error') {
-    return (
-      <div className="p-6 m-6 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-        <p style={{ color: '#EF4444' }} className="font-medium">Planet encountered an error</p>
-        <p className="text-sm mt-1" style={{ color: '#71717A' }}>{data.error}</p>
+    return (        <div className="p-6 m-6 rounded-xl bg-red-50 border border-red-200">
+        <p className="font-medium text-red-600">Planet encountered an error</p>
+        <p className="text-sm mt-1 text-zinc-500">{data.error}</p>
       </div>
     )
   }
@@ -941,8 +933,7 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
       return (
         <div className={clsx('space-y-2', depth > 0 && 'ml-4 mt-1')}>
           {Object.entries(val).map(([k, v]) => (
-            <div key={k}>
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#52525B' }}>{k.replace(/_/g, ' ')}</span>
+            <div key={k}>                  <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{k.replace(/_/g, ' ')}</span>
               <div className="mt-0.5 text-sm">{renderValue(v, depth + 1)}</div>
             </div>
           ))}
@@ -970,7 +961,7 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
 
         {data.files_generated?.length > 0 && (
           <div className="p-4 rounded-xl glass-card">
-            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#52525B' }}>Files Generated</p>
+            <p className="text-xs font-bold uppercase tracking-wider mb-2 text-zinc-400">Files Generated</p>
             <div className="flex flex-wrap gap-1.5">
               {data.files_generated.map((f: string, i: number) => (
                 <span key={i} className="flex items-center gap-1 text-xs px-2 py-1 rounded"

@@ -1,19 +1,18 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import Link from 'next/link'
 import {
   Brain, Send, Upload, X, Sparkles, ChevronDown, ChevronRight,
-  Loader2, AlertCircle, Lightbulb, Globe,
+  Loader2, AlertCircle, Lightbulb,
 } from 'lucide-react'
 import { SolarSystem } from '@/components/planets/SolarSystem'
 import { createProject, uploadFile, checkHealth } from '@/lib/api'
 import { PLANETS } from '@/types'
 import { clsx } from 'clsx'
-import { useEffect } from 'react'
 
 const EXAMPLE_IDEAS = [
   "Build an AI-powered Healthcare Assistant for rural clinics with voice support",
@@ -100,21 +99,21 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="min-h-screen space-bg">
+    <div className="min-h-screen" style={{ background: '#0a0a0c' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-8 py-4"
-              style={{ background: 'rgba(9,9,11,0.8)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-               style={{ background: 'rgba(255,215,0,0.1)', boxShadow: '0 0 20px rgba(255,215,0,0.1)' }}>
-            <span className="text-lg">☀️</span>
+              style={{ background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+               style={{ background: 'rgba(255,215,0,0.08)', boxShadow: '0 0 16px rgba(255,215,0,0.06)' }}>
+            <span className="text-base">☀️</span>
           </div>
           <div>
-            <p className="font-bold text-sm text-white">AIRA OS</p>
-            <p className="text-[11px] text-[#52525B] leading-none">Multi-Agent AI</p>
+            <p className="font-bold text-[13px] text-white leading-none">AIRA OS</p>
+            <p className="text-[10px] text-[#3F3F46] leading-none mt-0.5">Multi-Agent AI</p>
           </div>
         </Link>
-        <p className="text-sm" style={{ color: '#71717A' }}>New Project</p>
+        <p className="text-sm" style={{ color: '#52525B' }}>New Project</p>
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-12">
@@ -123,14 +122,14 @@ export default function NewProjectPage() {
           {/* Left: Form */}
           <div>
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <h1 className="text-4xl font-bold tracking-tight mb-2">
+              <h1 className="text-3xl font-bold tracking-tight mb-1">
                 Start a New
                 <span className="text-gradient"> Project</span>
               </h1>
-              <p className="text-sm mb-8" style={{ color: '#71717A' }}>
+              <p className="text-sm mb-8" style={{ color: '#52525B' }}>
                 Describe your idea and AIRA will orchestrate all 9 specialized AI planets to build it end-to-end.
               </p>
 
@@ -144,25 +143,25 @@ export default function NewProjectPage() {
                   rows={5}
                   className="input-field resize-none text-sm leading-relaxed"
                 />
-                <p className="text-xs mt-1.5" style={{ color: '#52525B' }}>
+                <p className="text-[11px] mt-1.5" style={{ color: '#3F3F46' }}>
                   Be descriptive — the more context you give, the better the output.
                 </p>
               </div>
 
               {/* Example ideas */}
               <div className="mb-6">
-                <p className="text-xs mb-2 flex items-center gap-1" style={{ color: '#52525B' }}>
+                <p className="text-[11px] mb-1.5 flex items-center gap-1" style={{ color: '#3F3F46' }}>
                   <Lightbulb className="w-3 h-3" /> Example ideas:
                 </p>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   {EXAMPLE_IDEAS.slice(0, 3).map((ex, i) => (
                     <button
                       key={i}
                       onClick={() => setIdea(ex)}
                       className="w-full text-left text-xs px-3 py-2 rounded-lg glass-card transition-all"
                     >
-                      <ChevronRight className="w-3 h-3 inline mr-1" style={{ color: '#52525B' }} />
-                      <span style={{ color: '#71717A' }}>{ex}</span>
+                      <ChevronRight className="w-3 h-3 inline mr-1" style={{ color: '#3F3F46' }} />
+                      <span style={{ color: '#52525B' }}>{ex}</span>
                     </button>
                   ))}
                 </div>
@@ -174,23 +173,23 @@ export default function NewProjectPage() {
                 <div
                   {...getRootProps()}
                   className={clsx(
-                    'border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all',
-                    isDragActive ? 'border-primary bg-primary/5' : 'hover:border-primary/40'
+                    'border border-dashed rounded-xl p-5 text-center cursor-pointer transition-all',
+                    isDragActive ? 'border-primary bg-primary/5' : 'hover:border-primary/30'
                   )}
-                  style={{ borderColor: isDragActive ? '#6366F1' : 'rgba(255,255,255,0.08)' }}
+                  style={{ borderColor: isDragActive ? '#6366F1' : 'rgba(255,255,255,0.06)' }}
                 >
                   <input {...getInputProps()} />
-                  <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: '#52525B' }} />
-                  <p className="text-sm" style={{ color: '#71717A' }}>
+                  <Upload className="w-7 h-7 mx-auto mb-2" style={{ color: '#3F3F46' }} />
+                  <p className="text-sm" style={{ color: '#52525B' }}>
                     {isDragActive ? 'Drop files here' : 'Drag MSME PDFs, PPTs, docs here, or click to browse'}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: '#3F3F46' }}>PDF, PPT, DOCX, TXT • Max 5 files</p>
+                  <p className="text-[11px] mt-1" style={{ color: '#27272A' }}>PDF, PPT, DOCX, TXT &bull; Max 5 files</p>
                 </div>
                 {uploadedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-1.5 mt-2">
                     {uploadedFiles.map((f, i) => (
-                      <span key={i} className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-lg"
-                            style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)' }}>
+                      <span key={i} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg"
+                            style={{ background: 'rgba(16,185,129,0.08)', color: '#10B981', border: '1px solid rgba(16,185,129,0.15)' }}>
                         {f.name}
                         <button onClick={() => setUploadedFiles(prev => prev.filter((_, j) => j !== i))}>
                           <X className="w-3 h-3" />
@@ -204,10 +203,10 @@ export default function NewProjectPage() {
               {/* Advanced options */}
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-2 text-sm transition-colors mb-3"
-                style={{ color: '#71717A' }}
+                className="flex items-center gap-1.5 text-sm transition-colors mb-3"
+                style={{ color: '#52525B' }}
               >
-                <ChevronDown className={clsx('w-4 h-4 transition-transform', showAdvanced && 'rotate-180')} />
+                <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform', showAdvanced && 'rotate-180')} />
                 Advanced Options
               </button>
 
@@ -219,7 +218,7 @@ export default function NewProjectPage() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-3 pb-4">
+                    <div className="space-y-2.5 pb-4">
                       <div>
                         <label className="label">MSME / Hackathon Theme</label>
                         <select
@@ -268,7 +267,7 @@ export default function NewProjectPage() {
               {/* Error */}
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-4"
-                     style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444' }}>
+                     style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444' }}>
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
@@ -279,9 +278,9 @@ export default function NewProjectPage() {
                 onClick={handleSubmit}
                 disabled={isSubmitting || !idea.trim()}
                 className={clsx(
-                  'w-full flex items-center justify-center gap-3 py-4 rounded-xl font-semibold text-base transition-all',
+                  'w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all',
                   isSubmitting || !idea.trim()
-                    ? 'opacity-50 cursor-not-allowed'
+                    ? 'opacity-40 cursor-not-allowed'
                     : 'text-white hover:scale-[1.01] hover:shadow-glow-primary'
                 )}
                 style={{
@@ -290,21 +289,21 @@ export default function NewProjectPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Launching AIRA...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles className="w-4 h-4" />
                     Launch AIRA Pipeline
-                    <Send className="w-5 h-5" />
+                    <Send className="w-4 h-4" />
                   </>
                 )}
               </button>
 
               {/* API Status */}
               {apiOnline === false && (
-                <p className="text-xs text-center mt-3" style={{ color: '#F59E0B' }}>
+                <p className="text-[11px] text-center mt-3" style={{ color: '#F59E0B' }}>
                   ⚠️ Backend API appears offline. Make sure it&apos;s running on port 8000.
                 </p>
               )}
@@ -314,9 +313,9 @@ export default function NewProjectPage() {
           {/* Right: Solar system preview + info */}
           <div className="flex flex-col items-center gap-6">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.15 }}
             >
               <SolarSystem
                 planetStatuses={Object.fromEntries(PLANETS.map((p) => [p.id, 'idle']))}
@@ -325,21 +324,21 @@ export default function NewProjectPage() {
             </motion.div>
 
             {/* Pipeline steps */}
-            <div className="w-full space-y-1.5">
+            <div className="w-full space-y-1">
               {PLANETS.map((step, i) => (
                 <motion.div
                   key={step.id}
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.04 * i }}
-                  className="flex items-center gap-3 p-3 rounded-xl glass-card"
+                  transition={{ delay: 0.03 * i }}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl glass-card"
                 >
-                  <span className="text-lg w-8 text-center">{step.symbol}</span>
+                  <span className="text-base w-7 text-center">{step.symbol}</span>
                   <div className="min-w-0">
-                    <span className="text-sm font-semibold" style={{ color: step.color }}>
+                    <span className="text-xs font-semibold" style={{ color: step.color }}>
                       {step.name}
                     </span>
-                    <p className="text-xs truncate" style={{ color: '#52525B' }}>
+                    <p className="text-[11px] truncate" style={{ color: '#3F3F46' }}>
                       {step.id === 'aira' && 'Understands your goal & orchestrates every planet'}
                       {step.id === 'mercury' && 'Researches domain, competitors, patents, MSME rules'}
                       {step.id === 'mars' && 'Designs system architecture & tech stack'}

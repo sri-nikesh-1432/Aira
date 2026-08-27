@@ -33,11 +33,9 @@ type WorkspaceTab = 'planets' | 'computer' | 'research' | 'architecture' | 'desi
 function buildTree(files: FileNode[]): FileNode[] {
   const root: FileNode[] = []
   const map: Record<string, FileNode> = {}
-
   files.forEach(file => {
     const parts = file.path.split('/')
     let current = root
-
     parts.forEach((part, i) => {
       const pathSoFar = parts.slice(0, i + 1).join('/')
       if (i === parts.length - 1) {
@@ -52,26 +50,19 @@ function buildTree(files: FileNode[]): FileNode[] {
       }
     })
   })
-
   return root
 }
 
 function TreeNode({ node, depth, selected, onSelect }: {
-  node: FileNode
-  depth: number
-  selected: string | null
-  onSelect: (f: FileNode) => void
+  node: FileNode; depth: number; selected: string | null; onSelect: (f: FileNode) => void
 }) {
   const [open, setOpen] = useState(depth < 2)
-
   if (node.isDir) {
     return (
       <div>
-        <button
-          onClick={() => setOpen(!open)}
+        <button onClick={() => setOpen(!open)}
           className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded transition-colors hover:bg-[#EDE5DC]"
-          style={{ paddingLeft: `${8 + depth * 12}px`, color: '#716B65' }}
-        >
+          style={{ paddingLeft: `${8 + depth * 12}px`, color: '#716B65' }}>
           {open ? <ChevronDown className="w-3 h-3 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 flex-shrink-0" />}
           {open ? <FolderOpen className="w-3 h-3 flex-shrink-0 text-[#8B5A2B]" /> : <FolderClosed className="w-3 h-3 flex-shrink-0 text-[#D4C8BC]" />}
           <span className="truncate text-xs">{node.name}</span>
@@ -82,17 +73,12 @@ function TreeNode({ node, depth, selected, onSelect }: {
       </div>
     )
   }
-
   const isSelected = selected === node.path
   return (
-    <button
-      onClick={() => onSelect(node)}
-      className={clsx(
-        'flex items-center gap-1.5 w-full text-left px-2 py-1 rounded text-xs transition-colors',
-        isSelected ? 'bg-[#8B5A2B]/10 text-[#8B5A2B]' : 'hover:bg-[#EDE5DC]'
-      )}
-      style={{ paddingLeft: `${8 + depth * 12}px`, color: isSelected ? undefined : '#716B65' }}
-    >
+    <button onClick={() => onSelect(node)}
+      className={clsx('flex items-center gap-1.5 w-full text-left px-2 py-1 rounded text-xs transition-colors',
+        isSelected ? 'bg-[#8B5A2B]/10 text-[#8B5A2B]' : 'hover:bg-[#EDE5DC]')}
+      style={{ paddingLeft: `${8 + depth * 12}px`, color: isSelected ? undefined : '#716B65' }}>
       <File className="w-3 h-3 flex-shrink-0 opacity-60" />
       <span className="truncate">{node.name}</span>
     </button>
@@ -136,6 +122,11 @@ export default function ProjectWorkspacePage() {
   ])
   const [downloadingZip, setDownloadingZip] = useState(false)
 
+  const addTerminalLine = (line: string) => {
+    setTerminalLines(prev => [...prev.slice(-100), line])
+  }
+
+  // Load project + stream
   useEffect(() => {
     if (!projectId) return
     let cleanup: (() => void) | null = null
@@ -147,18 +138,17 @@ export default function ProjectWorkspacePage() {
       if (p.status === 'running') {
         cleanup = streamProject(projectId, (ev) => {
           setEvents(prev => [...prev, ev])
-          if (ev.planet_statuses) {
-            setProject(prev => prev ? { ...prev, planet_statuses: ev.planet_statuses as any } : prev)
-          }
-          if (ev.final_output) {
-            setProject(prev => prev ? { ...prev, status: 'completed', final_output: ev.final_output } : prev)
-          }
+          if (ev.planet_statuses) setProject(prev => prev ? { ...prev, planet_statuses: ev.planet_statuses as any } : prev)
+          if (ev.final_output) setProject(prev => prev ? { ...prev, status: 'completed', final_output: ev.final_output } : prev)
         }, () => {
           getProject(projectId).then(p2 => {
             setProject(p2)
             if (p2.status === 'completed') {
               loadFiles(projectId)
               addTerminalLine('$ Pipeline complete! Loading generated files...')
+              // Auto-switch to computer tab and start preview
+              setActiveTab('computer')
+              setTimeout(() => launchPreview(), 1000)
             }
           })
         })
@@ -166,6 +156,8 @@ export default function ProjectWorkspacePage() {
 
       if (p.status === 'completed') {
         loadFiles(projectId)
+        // Check if preview is already running for this project
+        checkExistingPreview()
       }
     }).catch(() => setLoading(false))
 
@@ -194,10 +186,6 @@ export default function ProjectWorkspacePage() {
       addTerminalLine(`[${latest.planet?.toUpperCase() || 'AIRA'}] ${latest.message}`)
     }
   }, [events])
-
-  const addTerminalLine = (line: string) => {
-    setTerminalLines(prev => [...prev.slice(-100), line])
-  }
 
   const loadFiles = async (pid: string) => {
     try {
@@ -245,10 +233,58 @@ export default function ProjectWorkspacePage() {
     addTerminalLine('$ Download started')
   }
 
+  // Check if a preview is already running for this project
+  const checkExistingPreview = async () => {
+    try {
+      const st = await getPreviewStatus(projectId)
+      if (st?.status === 'ready' && st?.frontend_url) {
+        setPreviewUrl(st.frontend_url)
+        setPreviewBackendUrl(st.backend_url)
+        setPreviewState('ready')
+        setActiveTab('computer')
+        addTerminalLine(`$ Found existing preview: ${st.frontend_url}`)
+      } else if (st?.status === 'starting') {
+        setPreviewState('starting')
+        if (st?.frontend_url) setPreviewUrl(st.frontend_url)
+        if (st?.backend_url) setPreviewBackendUrl(st.backend_url)
+        setActiveTab('computer')
+        // Poll until ready
+        pollPreview()
+      }
+    } catch {}
+  }
+
+  const pollPreview = () => {
+    const poll = setInterval(async () => {
+      try {
+        const st = await getPreviewStatus(projectId)
+        if (st?.frontend_url) setPreviewUrl(st.frontend_url)
+        if (st?.backend_url) setPreviewBackendUrl(st.backend_url)
+        if (st?.status === 'ready') {
+          setPreviewState('ready')
+          addTerminalLine(`$ Preview ready: ${st.frontend_url}`)
+          clearInterval(poll)
+        } else if (st?.status === 'error' || st?.status === 'stopped') {
+          setPreviewState('error')
+          setPreviewError(st.error || `Preview ${st.status}`)
+          addTerminalLine(`$ Preview error: ${st.error || st.status}`)
+          clearInterval(poll)
+        } else if (st?.message) {
+          addTerminalLine(`$ ${st.message}`)
+        }
+      } catch {
+        clearInterval(poll)
+        setPreviewState('error')
+        setPreviewError('Lost connection while starting preview')
+      }
+    }, 5000)
+  }
+
   const launchPreview = async () => {
+    if (previewState === 'starting') return
     setPreviewState('starting')
     setPreviewError('')
-    addTerminalLine('$ Booting live preview (installing deps + starting servers)...')
+    addTerminalLine('$ Booting live preview of THIS project (installing deps + starting servers)...')
     try {
       const info = await startPreview(projectId)
       if (info?.status === 'error') {
@@ -264,30 +300,7 @@ export default function ProjectWorkspacePage() {
         addTerminalLine(`$ Preview ready: ${info.frontend_url}`)
         return
       }
-
-      const poll = setInterval(async () => {
-        try {
-          const st = await getPreviewStatus(projectId)
-          if (st?.frontend_url) setPreviewUrl(st.frontend_url)
-          if (st?.backend_url) setPreviewBackendUrl(st.backend_url)
-          if (st?.status === 'ready') {
-            setPreviewState('ready')
-            addTerminalLine(`$ Preview ready: ${st.frontend_url}`)
-            clearInterval(poll)
-          } else if (st?.status === 'error' || st?.status === 'stopped') {
-            setPreviewState('error')
-            setPreviewError(st.error || `Preview ${st.status}`)
-            addTerminalLine(`$ Preview error: ${st.error || st.status}`)
-            clearInterval(poll)
-          } else if (st?.message) {
-            addTerminalLine(`$ ${st.message}`)
-          }
-        } catch {
-          clearInterval(poll)
-          setPreviewState('error')
-          setPreviewError('Lost connection while starting preview')
-        }
-      }, 5000)
+      pollPreview()
     } catch (e: any) {
       setPreviewState('error')
       setPreviewError(e?.response?.data?.detail || 'Failed to start preview')
@@ -336,7 +349,7 @@ export default function ProjectWorkspacePage() {
 
   const tabs: { id: WorkspaceTab; label: string; icon: any }[] = [
     { id: 'planets',      label: 'Live Feed',    icon: Star },
-    { id: 'computer',     label: 'AIRA Computer', icon: Monitor },
+    { id: 'computer',     label: 'Live Preview', icon: Monitor },
     { id: 'research',     label: 'Research',      icon: FileText },
     { id: 'architecture', label: 'Architecture',  icon: Layers },
     { id: 'design',       label: 'Design',        icon: Palette },
@@ -364,42 +377,32 @@ export default function ProjectWorkspacePage() {
                   background: isRunning ? 'rgba(139,90,43,0.1)' : isCompleted ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                   color: isRunning ? '#8B5A2B' : isCompleted ? '#10B981' : '#EF4444',
                 }}>
-            {isRunning   && <div className="w-1.5 h-1.5 rounded-full bg-[#8B5A2B] animate-pulse" />}
+            {isRunning && <div className="w-1.5 h-1.5 rounded-full bg-[#8B5A2B] animate-pulse" />}
             {isCompleted && <CheckCircle className="w-3 h-3" />}
             {isRunning ? 'Running' : isCompleted ? 'Complete' : project.status}
           </span>
           {isCompleted && (
             <>
-              <button
-                onClick={launchPreview}
-                disabled={previewState === 'starting'}
+              <button onClick={launchPreview} disabled={previewState === 'starting'}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-[1.02]"
-                style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}
-              >
-                {previewState === 'starting'
-                  ? <Loader2 className="w-3 h-3 animate-spin" />
-                  : previewState === 'ready'
-                    ? <Eye className="w-3 h-3" />
-                    : <Play className="w-3 h-3" />}
+                style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}>
+                {previewState === 'starting' ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : previewState === 'ready' ? <Eye className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                 {previewState === 'starting' ? 'Booting...'
-                  : previewState === 'ready' ? 'Preview Ready'
-                  : 'Live Preview'}
+                  : previewState === 'ready' ? 'Preview Running' : 'Start Preview'}
               </button>
               {previewUrl && previewState === 'ready' && (
                 <a href={previewUrl} target="_blank" rel="noopener noreferrer"
                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-[#EDE5DC]"
                    style={{ background: 'rgba(139,90,43,0.06)', color: '#8B5A2B' }}>
-                  <ExternalLink className="w-3 h-3" />
-                  Open
+                  <ExternalLink className="w-3 h-3" /> Open
                 </a>
               )}
-              <button
-                onClick={downloadAll}
-                disabled={downloadingZip}
+              <button onClick={downloadAll} disabled={downloadingZip}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{ background: 'rgba(139,90,43,0.1)', color: '#8B5A2B' }}>
                 {downloadingZip ? <Loader2 className="w-3 h-3 animate-spin" /> : <Archive className="w-3 h-3" />}
-                Download ZIP
+                Download
               </button>
             </>
           )}
@@ -410,40 +413,30 @@ export default function ProjectWorkspacePage() {
         {/* Left sidebar */}
         <aside className="w-72 flex-shrink-0 border-r border-[#2C2420]/8 flex flex-col overflow-hidden bg-[#FFFCF9]">
           <div className="p-3 flex justify-center border-b border-[#2C2420]/5">
-            <SolarSystem
-              planetStatuses={project.planet_statuses}
+            <SolarSystem planetStatuses={project.planet_statuses}
               onPlanetClick={(id) => setActivePlanet(id === activePlanet ? null : id)}
-              activePlanet={activePlanet}
-              size="sm"
-            />
+              activePlanet={activePlanet} size="sm" />
           </div>
-
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {PLANETS.map((planet) => (
-              <PlanetCard
-                key={planet.id}
-                planet={planet}
+              <PlanetCard key={planet.id} planet={planet}
                 status={project.planet_statuses?.[planet.id] || 'idle'}
                 message={planetMessages[planet.id]?.message}
                 quip={planetMessages[planet.id]?.quip}
                 onClick={() => setActivePlanet(planet.id === activePlanet ? null : planet.id)}
-                isActive={activePlanet === planet.id}
-              />
+                isActive={activePlanet === planet.id} />
             ))}
           </div>
-
           {isCompleted && project.final_output?.validation && (
             <div className="p-3 border-t border-[#2C2420]/5">
               <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/60">
                 <p className="text-xs mb-1.5 text-[#716B65]">Quality Score</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-[#EDE5DC]">
-                    <motion.div
-                      initial={{ width: 0 }}
+                    <motion.div initial={{ width: 0 }}
                       animate={{ width: `${project.final_output.validation.quality_score}%` }}
                       transition={{ duration: 1.5, ease: 'easeOut' }}
-                      className="h-full rounded-full bg-emerald-500"
-                    />
+                      className="h-full rounded-full bg-emerald-500" />
                   </div>
                   <span className="text-sm font-bold text-emerald-600">
                     {project.final_output.validation.quality_score}%
@@ -459,22 +452,18 @@ export default function ProjectWorkspacePage() {
           {/* Tabs */}
           <div className="flex items-center gap-1 px-4 py-2 border-b border-[#2C2420]/8 overflow-x-auto flex-shrink-0 bg-[#FFFCF9]">
             {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={clsx(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
                   activeTab === tab.id
                     ? 'bg-[#8B5A2B]/10 text-[#8B5A2B] border border-[#8B5A2B]/20'
-                    : 'hover:bg-[#EDE5DC] text-[#716B65]'
-                )}
-              >
+                    : 'hover:bg-[#EDE5DC] text-[#716B65]')}>
                 <tab.icon className="w-3.5 h-3.5" />
                 {tab.label}
-                {tab.id === 'computer' && isCompleted && files.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#8B5A2B]/15 text-[#8B5A2B] text-xs">
-                    {files.length}
-                  </span>
+                {tab.id === 'computer' && previewState === 'ready' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+                {tab.id === 'computer' && isCompleted && files.length > 0 && previewState !== 'ready' && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#8B5A2B]/15 text-[#8B5A2B] text-xs">{files.length}</span>
                 )}
               </button>
             ))}
@@ -482,49 +471,24 @@ export default function ProjectWorkspacePage() {
 
           {/* Tab content */}
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'planets' && (
-              <PlanetsTab events={events} project={project} logRef={logRef} />
-            )}
+            {activeTab === 'planets' && <PlanetsTab events={events} project={project} logRef={logRef} />}
 
             {activeTab === 'computer' && (
-              <AIRAComputer
-                projectId={projectId}
-                files={files}
-                fileTree={fileTree}
-                selectedFile={selectedFile}
-                fileContent={fileContent}
-                fileLoading={fileLoading}
-                terminalLines={terminalLines}
-                copied={copied}
-                isCompleted={isCompleted}
-                isRunning={isRunning}
-                previewUrl={previewUrl}
-                previewBackendUrl={previewBackendUrl}
-                previewState={previewState}
-                previewError={previewError}
-                onFileSelect={openFile}
-                onCopy={copyCode}
+              <AIRAComputer projectId={projectId} files={files} fileTree={fileTree}
+                selectedFile={selectedFile} fileContent={fileContent} fileLoading={fileLoading}
+                terminalLines={terminalLines} copied={copied} isCompleted={isCompleted} isRunning={isRunning}
+                previewUrl={previewUrl} previewBackendUrl={previewBackendUrl}
+                previewState={previewState} previewError={previewError}
+                onFileSelect={openFile} onCopy={copyCode}
                 onRefreshFiles={() => loadFiles(projectId)}
-                onLaunchPreview={launchPreview}
-                onStopPreview={handleStopPreview}
-              />
+                onLaunchPreview={launchPreview} onStopPreview={handleStopPreview} />
             )}
 
-            {activeTab === 'research' && (
-              <OutputTab data={project.final_output?.planet_outputs?.mercury} planet="mercury" />
-            )}
-            {activeTab === 'architecture' && (
-              <OutputTab data={project.final_output?.planet_outputs?.mars} planet="mars" />
-            )}
-            {activeTab === 'design' && (
-              <OutputTab data={project.final_output?.planet_outputs?.venus} planet="venus" />
-            )}
-            {activeTab === 'code' && (
-              <OutputTab data={project.final_output?.planet_outputs?.earth} planet="earth" />
-            )}
-            {activeTab === 'deployment' && (
-              <OutputTab data={project.final_output?.planet_outputs?.pluto} planet="pluto" />
-            )}
+            {activeTab === 'research' && <OutputTab data={project.final_output?.planet_outputs?.mercury} planet="mercury" />}
+            {activeTab === 'architecture' && <OutputTab data={project.final_output?.planet_outputs?.mars} planet="mars" />}
+            {activeTab === 'design' && <OutputTab data={project.final_output?.planet_outputs?.venus} planet="venus" />}
+            {activeTab === 'code' && <OutputTab data={project.final_output?.planet_outputs?.earth} planet="earth" />}
+            {activeTab === 'deployment' && <OutputTab data={project.final_output?.planet_outputs?.pluto} planet="pluto" />}
           </div>
         </main>
       </div>
@@ -532,7 +496,7 @@ export default function ProjectWorkspacePage() {
   )
 }
 
-// ─── AIRA Computer ────────────────────────────────────────────────────────────
+// ─── AIRA Computer (now: Code + Terminal + Live Preview) ──────────────────────
 function AIRAComputer({
   projectId, files, fileTree, selectedFile, fileContent,
   fileLoading, terminalLines, copied, isCompleted, isRunning,
@@ -547,9 +511,16 @@ function AIRAComputer({
   onFileSelect: (f: FileNode) => void; onCopy: () => void
   onRefreshFiles: () => void; onLaunchPreview: () => void; onStopPreview: () => void
 }) {
-  const [panel, setPanel] = useState<'code' | 'terminal' | 'preview'>('code')
+  const [panel, setPanel] = useState<'preview' | 'code' | 'terminal'>(
+    previewState === 'ready' ? 'preview' : 'code'
+  )
   const termRef = useRef<HTMLDivElement>(null)
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
+
+  // Auto-switch to preview when ready
+  useEffect(() => {
+    if (previewState === 'ready') setPanel('preview')
+  }, [previewState])
 
   useEffect(() => {
     termRef.current?.scrollTo({ top: termRef.current.scrollHeight, behavior: 'smooth' })
@@ -574,8 +545,8 @@ function AIRAComputer({
       <div className="flex items-center justify-center h-full text-center">
         <div>
           <Monitor className="w-16 h-16 mx-auto mb-4 text-[#D4C8BC]" />
-          <p className="text-lg font-semibold text-[#716B65]">AIRA Computer</p>
-          <p className="text-sm mt-1 text-[#A19B95]">Start a project to see generated files here</p>
+          <p className="text-lg font-semibold text-[#716B65]">Live Preview</p>
+          <p className="text-sm mt-1 text-[#A19B95]">Start a project to see generated code and live preview here</p>
         </div>
       </div>
     )
@@ -609,33 +580,118 @@ function AIRAComputer({
         )}
       </div>
 
-      {/* Code viewer + terminal */}
+      {/* Main panel */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Sub-tabs: Preview / Code / Terminal */}
         <div className="flex items-center gap-1 px-3 py-1.5 border-b border-[#2C2420]/8 flex-shrink-0 bg-[#F5F0EB]">
-          {(['code', 'terminal', 'preview'] as const).map((p) => (
+          {(['preview', 'code', 'terminal'] as const).map((p) => (
             <button key={p} onClick={() => setPanel(p)}
-              className={clsx(
-                'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all',
-                panel === p ? 'bg-[#FFFCF9] text-[#8B5A2B] shadow-sm' : 'hover:bg-[#EDE5DC] text-[#716B65]'
-              )}>
+              className={clsx('flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all',
+                panel === p ? 'bg-[#FFFCF9] text-[#8B5A2B] shadow-sm' : 'hover:bg-[#EDE5DC] text-[#716B65]')}>
+              {p === 'preview' && <Globe className="w-3 h-3" />}
               {p === 'code' && <Code2 className="w-3 h-3" />}
               {p === 'terminal' && <Terminal className="w-3 h-3" />}
-              {p === 'preview' && <Globe className="w-3 h-3" />}
-              {p === 'code' ? (selectedFile?.name || 'Code View') : p === 'terminal' ? 'Terminal' : 'Live Preview'}
+              {p === 'preview' ? 'Live Preview' : p === 'code' ? (selectedFile?.name || 'Code View') : 'Terminal'}
               {p === 'preview' && previewState === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
             </button>
           ))}
-          {selectedFile && (
+          {selectedFile && panel === 'code' && (
             <div className="ml-auto flex items-center gap-1">
               <span className="text-[10px] font-mono text-[#A19B95]">{selectedFile.path}</span>
-              <button onClick={onCopy}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-[#EDE5DC] text-[#716B65]">
+              <button onClick={onCopy} className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-[#EDE5DC] text-[#716B65]">
                 {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </button>
             </div>
           )}
         </div>
 
+        {/* ── Live Preview Panel ────────────────────────────── */}
+        {panel === 'preview' && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {previewState === 'idle' && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FFFCF9]">
+                <Globe className="w-14 h-14 mb-4 text-[#D4C8BC]" />
+                <p className="font-semibold text-lg text-[#716B65]">Test the real product</p>
+                <p className="text-sm mt-1 max-w-md text-[#A19B95]">
+                  This will boot THIS project&apos;s generated frontend + backend on unique ports.
+                  You can then interact with it — navigate, test features, call the API.
+                </p>
+                <div className="mt-4 p-4 rounded-xl bg-[#EDE5DC] max-w-sm text-left">
+                  <p className="text-xs font-semibold text-[#716B65] mb-2">What happens:</p>
+                  <ol className="text-xs text-[#A19B95] space-y-1 list-decimal list-inside">
+                    <li>Install frontend dependencies (first time only)</li>
+                    <li>Install backend Python packages</li>
+                    <li>Start the backend API on its own port</li>
+                    <li>Start the frontend on its own port</li>
+                    <li>Show the running app right here</li>
+                  </ol>
+                </div>
+                <button onClick={onLaunchPreview} disabled={!isCompleted}
+                  className="btn-primary inline-flex items-center gap-2 mt-6">
+                  <Play className="w-4 h-4" />
+                  {isCompleted ? 'Start Live Preview' : 'Waiting for project to complete...'}
+                </button>
+              </div>
+            )}
+
+            {previewState === 'starting' && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FFFCF9]">
+                <Loader2 className="w-10 h-10 animate-spin text-[#8B5A2B] mb-4" />
+                <p className="font-medium text-[#716B65]">Booting this project&apos;s app...</p>
+                <p className="text-sm mt-1 text-[#A19B95]">
+                  Installing dependencies &amp; starting the frontend + backend (first time takes a few minutes)
+                </p>
+                <p className="text-xs mt-3 text-[#D4C8BC]">Each project runs on its own ports — completely independent</p>
+              </div>
+            )}
+
+            {previewState === 'error' && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FFFCF9]">
+                <AlertCircle className="w-10 h-10 mb-4 text-red-400" />
+                <p className="font-medium text-[#716B65]">Preview failed to start</p>
+                <p className="text-sm mt-1 max-w-md break-all text-red-500">{previewError || 'Unknown error'}</p>
+                <button onClick={onLaunchPreview} className="btn-ghost mt-5 text-sm">Try Again</button>
+              </div>
+            )}
+
+            {previewState === 'ready' && previewUrl && (
+              <>
+                <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#2C2420]/8 flex-shrink-0 bg-[#F5F0EB]">
+                  <div className="flex items-center gap-1.5 text-xs text-[#716B65]">
+                    <span className={clsx('w-2 h-2 rounded-full',
+                      backendOnline === null ? 'bg-amber-500 animate-pulse' :
+                      backendOnline ? 'bg-emerald-500' : 'bg-red-500')} />
+                    <span>Backend</span>
+                    {previewBackendUrl && (
+                      <code className="text-[10px] font-mono ml-1 text-[#A19B95]">{previewBackendUrl}</code>
+                    )}
+                  </div>
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <a href={previewBackendUrl ? `${previewBackendUrl}/docs` : undefined}
+                       target="_blank" rel="noopener noreferrer"
+                       className="px-2 py-1 rounded text-xs transition-all hover:bg-[#EDE5DC] text-[#716B65]">API Docs</a>
+                    <a href={previewUrl} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-[#EDE5DC] text-[#716B65]">
+                      <ExternalLink className="w-3 h-3" /> Open in new tab
+                    </a>
+                    <button onClick={onStopPreview}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-red-50 text-[#716B65]">
+                      <X className="w-3 h-3" /> Stop
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-hidden bg-white">
+                  <iframe key={previewUrl} src={previewUrl}
+                    title="Generated project live preview"
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Code Panel ────────────────────────────────────── */}
         {panel === 'code' && (
           <div className="flex-1 overflow-auto bg-[#FFFCF9]">
             {fileLoading ? (
@@ -658,11 +714,11 @@ function AIRAComputer({
           </div>
         )}
 
+        {/* ── Terminal Panel ────────────────────────────────── */}
         {panel === 'terminal' && (
           <div ref={termRef} className="flex-1 overflow-auto p-4 font-mono text-xs bg-[#EDE5DC]">
             {terminalLines.map((line, i) => (
-              <div key={i} className={clsx(
-                'leading-relaxed',
+              <div key={i} className={clsx('leading-relaxed',
                 line.startsWith('$') ? 'text-emerald-600' :
                 line.includes('ERROR') || line.includes('error') ? 'text-red-500' :
                 line.includes('[AIRA]') ? 'text-[#8B5A2B]' :
@@ -674,11 +730,8 @@ function AIRAComputer({
                 line.includes('[SATURN]') ? 'text-[#92400E]' :
                 line.includes('[NEPTUNE]') ? 'text-blue-400' :
                 line.includes('[URANUS]') ? 'text-teal-500' :
-                line.includes('[PLUTO]') ? 'text-purple-500' :
-                'text-[#716B65]'
-              )}>
-                {line}
-              </div>
+                line.includes('[PLUTO]') ? 'text-purple-500' : 'text-[#716B65]'
+              )}>{line}</div>
             ))}
             {isRunning && (
               <div className="flex items-center gap-2 mt-1 text-[#8B5A2B]">
@@ -687,89 +740,6 @@ function AIRAComputer({
               </div>
             )}
             <div className="h-2" />
-          </div>
-        )}
-
-        {panel === 'preview' && (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {previewState === 'idle' && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FFFCF9]">
-                <Globe className="w-14 h-14 mb-4 text-[#D4C8BC]" />
-                <p className="font-semibold text-lg text-[#716B65]">Test the real product</p>
-                <p className="text-sm mt-1 max-w-md text-[#A19B95]">
-                  Boot the generated frontend + backend and interact with the app right here —
-                  navigate pages, call the API, try the features.
-                </p>
-                <button onClick={onLaunchPreview} disabled={!isCompleted}
-                  className="btn-primary inline-flex items-center gap-2 mt-6">
-                  <Play className="w-4 h-4" />
-                  {isCompleted ? 'Start Live Preview' : 'Waiting for project to complete...'}
-                </button>
-                {!isCompleted && (
-                  <p className="text-xs mt-2 text-[#A19B95]">Preview is available once all planets finish.</p>
-                )}
-              </div>
-            )}
-
-            {previewState === 'starting' && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FFFCF9]">
-                <Loader2 className="w-10 h-10 animate-spin text-[#8B5A2B] mb-4" />
-                <p className="font-medium text-[#716B65]">Booting generated app...</p>
-                <p className="text-sm mt-1 text-[#A19B95]">
-                  Installing dependencies &amp; starting the frontend + backend (first time takes a few minutes)
-                </p>
-              </div>
-            )}
-
-            {previewState === 'error' && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FFFCF9]">
-                <AlertCircle className="w-10 h-10 mb-4 text-red-400" />
-                <p className="font-medium text-[#716B65]">Preview failed to start</p>
-                <p className="text-sm mt-1 max-w-md break-all text-red-500">{previewError || 'Unknown error'}</p>
-                <button onClick={onLaunchPreview} className="btn-ghost mt-5 text-sm">Try Again</button>
-              </div>
-            )}
-
-            {previewState === 'ready' && previewUrl && (
-              <>
-                <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#2C2420]/8 flex-shrink-0 bg-[#F5F0EB]">
-                  <div className="flex items-center gap-1.5 text-xs text-[#716B65]">
-                    <span className={clsx(
-                      'w-2 h-2 rounded-full',
-                      backendOnline === null ? 'bg-amber-500 animate-pulse' :
-                      backendOnline ? 'bg-emerald-500' : 'bg-red-500'
-                    )} />
-                    <span>Backend</span>
-                    {previewBackendUrl && (
-                      <code className="text-[10px] font-mono ml-1 text-[#A19B95]">{previewBackendUrl}</code>
-                    )}
-                  </div>
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <a href={previewBackendUrl ? `${previewBackendUrl}/docs` : undefined}
-                       target="_blank" rel="noopener noreferrer"
-                       className="px-2 py-1 rounded text-xs transition-all hover:bg-[#EDE5DC] text-[#716B65]">API Docs</a>
-                    <a href={previewUrl} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-[#EDE5DC] text-[#716B65]">
-                      <ExternalLink className="w-3 h-3" />
-                      Open in new tab
-                    </a>
-                    <button onClick={onStopPreview}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all hover:bg-red-50 text-[#716B65]">
-                      <X className="w-3 h-3" />
-                      Stop
-                    </button>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-hidden bg-white">
-                  <iframe
-                    src={previewUrl}
-                    title="Generated product live preview"
-                    className="w-full h-full border-0"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-                  />
-                </div>
-              </>
-            )}
           </div>
         )}
       </div>
@@ -788,7 +758,6 @@ function PlanetsTab({ events, project, logRef }: {
       quip: e.quip, timestamp: new Date().toISOString(),
     }))
   ]
-
   const seen = new Set<string>()
   const unique = allMessages.filter(m => {
     const key = `${m.planet}:${m.message}`
@@ -829,9 +798,7 @@ function PlanetsTab({ events, project, logRef }: {
                 </div>
                 <p className="text-sm text-[#5A544E]">{msg.message}</p>
                 {msg.quip && (
-                  <p className="text-xs mt-1.5 italic text-[#A19B95]">
-                    &ldquo;{msg.quip}&rdquo;
-                  </p>
+                  <p className="text-xs mt-1.5 italic text-[#A19B95]">&ldquo;{msg.quip}&rdquo;</p>
                 )}
               </div>
             </motion.div>
@@ -869,7 +836,6 @@ function PlanetsTab({ events, project, logRef }: {
 function OutputTab({ data, planet }: { data: any; planet: string }) {
   const color = PLANET_COLORS[planet] || '#8B5A2B'
   const sym = PLANET_SYMBOLS[planet] || '⚡'
-
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -878,7 +844,6 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
       </div>
     )
   }
-
   if (data.status === 'error') {
     return (
       <div className="p-6 m-6 rounded-xl bg-red-50 border border-red-200">
@@ -887,7 +852,6 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
       </div>
     )
   }
-
   const renderValue = (val: any, depth = 0): React.ReactNode => {
     if (val == null) return <span className="text-[#A19B95]">&mdash;</span>
     if (typeof val === 'string') return <span className="text-[#5A544E]">{val}</span>
@@ -920,7 +884,6 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
     }
     return <span>{String(val)}</span>
   }
-
   const skip = new Set(['status', 'planet', 'files_generated'])
   const content = Object.fromEntries(Object.entries(data).filter(([k]) => !skip.has(k)))
 
@@ -936,7 +899,6 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
             <p className="text-xs italic max-w-xs text-right text-[#A19B95]">&ldquo;{data.personality_quip}&rdquo;</p>
           )}
         </div>
-
         {data.files_generated?.length > 0 && (
           <div className="p-4 rounded-xl glass-card">
             <p className="text-xs font-bold uppercase tracking-wider mb-2 text-[#A19B95]">Files Generated</p>
@@ -949,17 +911,14 @@ function OutputTab({ data, planet }: { data: any; planet: string }) {
             </div>
           </div>
         )}
-
-        {Object.entries(content)
-          .filter(([k]) => k !== 'personality_quip')
-          .map(([key, value]) => (
-            <div key={key} className="p-4 rounded-xl glass-card">
-              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color }}>
-                {key.replace(/_/g, ' ')}
-              </p>
-              <div className="text-sm">{renderValue(value)}</div>
-            </div>
-          ))}
+        {Object.entries(content).filter(([k]) => k !== 'personality_quip').map(([key, value]) => (
+          <div key={key} className="p-4 rounded-xl glass-card">
+            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color }}>
+              {key.replace(/_/g, ' ')}
+            </p>
+            <div className="text-sm">{renderValue(value)}</div>
+          </div>
+        ))}
       </div>
     </div>
   )

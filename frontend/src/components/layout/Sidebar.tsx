@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
-  Activity, Plus, FolderOpen, Settings, Sparkles, Globe,
+  Activity, Plus, FolderOpen, Settings, Sparkles, Globe, LogOut, User,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { useAuthStore } from '@/store/authStore'
+import { logoutApi } from '@/lib/api'
 
 const NAV_ITEMS = [
   { icon: Activity, label: 'Dashboard', href: '/dashboard' },
@@ -19,6 +21,15 @@ interface SidebarProps { apiOnline?: boolean | null }
 
 export function Sidebar({ apiOnline = null }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, logout } = useAuthStore()
+
+  const handleLogout = async () => {
+    try { await logoutApi() } catch {}
+    logout()
+    router.push('/login')
+  }
+
   return (
     <aside className="w-60 flex-shrink-0 border-r border-[#2C2420]/6 flex flex-col h-screen sticky top-0 bg-[#FFFCF9]">
       <div className="px-4 py-4 border-b border-[#2C2420]/5">
@@ -51,6 +62,25 @@ export function Sidebar({ apiOnline = null }: SidebarProps) {
           Launch AIRA
         </Link>
       </div>
+      {/* User info + logout */}
+      {user && (
+        <div className="px-3 py-2.5 border-t border-[#2C2420]/5">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-lg bg-[#8B5A2B]/10 flex items-center justify-center flex-shrink-0">
+              <User className="w-3.5 h-3.5 text-[#8B5A2B]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-[#2C2420] truncate">{user.name}</p>
+              <p className="text-[9px] text-[#A19B95] truncate">{user.email}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] text-[#716B65] hover:bg-red-50 hover:text-red-600 transition-all">
+            <LogOut className="w-3 h-3" />
+            Sign Out
+          </button>
+        </div>
+      )}
       <div className="px-4 py-3 border-t border-[#2C2420]/5">
         <div className="flex items-center gap-2 mb-2">
           <div className={clsx('w-1.5 h-1.5 rounded-full',

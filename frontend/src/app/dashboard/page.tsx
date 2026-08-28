@@ -10,11 +10,13 @@ import { listProjects, checkHealth } from '@/lib/api'
 import { PLANETS } from '@/types'
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
+import { useAuthStore } from '@/store/authStore'
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [apiOnline, setApiOnline] = useState<boolean | null>(null)
+  const { user } = useAuthStore()
 
   useEffect(() => {
     checkHealth().then(setApiOnline)
@@ -36,7 +38,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-[#2C2420]">Dashboard</h1>
-              <p className="text-sm mt-1 text-[#A19B95]">AIRA OS — Orchestrating 9 AI Planets + 1 Central Intelligence</p>
+              <p className="text-sm mt-1 text-[#A19B95]">{user ? `Welcome back, ${user.name}` : 'AIRA OS — Orchestrating 9 AI Planets + 1 Central Intelligence'}</p>
             </div>
             <Link href="/project/new" className="btn-primary text-sm py-2.5 px-5 flex items-center gap-2">
               <Plus className="w-4 h-4" /> New Project
@@ -78,7 +80,7 @@ export default function DashboardPage() {
                   <h2 className="text-xl font-bold mb-2 text-[#2C2420]">Ready to build something amazing?</h2>
                   <p className="text-sm mb-6 max-w-md mx-auto text-[#716B65]">Describe your project and AIRA's 9 planets will build it for you.</p>
                   <Link href="/project/new" className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-sm">
-                    <Sparkles className="w-4 h-4" /> Start First Project
+                    <Sparkles className="w-4 h-4" /> {projects.length === 0 ? 'Start First Project' : 'New Project'}
                   </Link>
                 </div>
               )}

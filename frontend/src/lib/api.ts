@@ -8,6 +8,54 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ─── Auth interceptor — attach JWT token to every request ────────────────────
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('aira_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Token expired or invalid — clear auth and redirect to login
+      localStorage.removeItem('aira_token')
+      localStorage.removeItem('aira_user')
+      const path = window.location.pathname
+      if (path !== '/login' && path !== '/register' && path !== '/') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+export async function register(data: { name: string; email: string; password: string; confirm_password: string }) {
+  const res = await api.post('/auth/register', data)
+  return res.data
+}
+
+export async function login(data: { email: string; password: string }) {
+  const res = await api.post('/auth/login', data)
+  return res.data
+}
+
+export async function logoutApi() {
+  const res = await api.post('/auth/logout')
+  return res.data
+}
+
+export async function getMe() {
+  const res = await api.get('/auth/me')
+  return res.data
+}
+
 // ─── Projects ─────────────────────────────────────────────────────────────────
 export async function createProject(request: ProjectRequest): Promise<{ project_id: string; stream_url: string }> {
   const res = await api.post('/api/projects', request)
@@ -35,12 +83,21 @@ export function streamProject(
   onDone?: () => void
 ): () => void {
   const url = `${API_URL}/api/projects/${projectId}/stream`
-  const eventSource = new EventSource(url)
+  let eventSource: EventSource
+
+  // SSE doesn't support Authorization header, so pass token as query param
+  // For production, use cookie-based auth or WebSocket auth
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('aira_token')
+    eventSource = new EventSource(url + (token ? `?token=${token}` : ''))
+  } else {
+    eventSource = new EventSource(url)
+  }
 
   eventSource.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data) as StreamEvent
-      if (data.event === 'ping') return  // ignore keep-alives
+      if (data.event === 'ping') return
       onEvent(data)
       if (data.event === 'completed' || data.event === 'error') {
         onDone?.()
@@ -99,12 +156,21 @@ export async function checkHealth(): Promise<boolean> {
 // ─── ZIP Download ─────────────────────────────────────────────────────────────
 export function downloadProjectZip(projectId: string): void {
   const url = `${API_URL}/api/projects/${projectId}/download-zip`
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `AIRA-project-${projectId.slice(0, 8)}.zip`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  const token = typeof window !== 'undefined' ? localStorage.getItem('aira_token') : null
+  // Use fetch with auth header for download
+  fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then((res) => res.blob())
+    .then((blob) => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `AIRA-project-${projectId.slice(0, 8)}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+    })
 }
 
 // ─── Preview Info ─────────────────────────────────────────────────────────────

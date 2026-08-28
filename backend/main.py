@@ -2,13 +2,20 @@
 ☀️ AIRA Core - FastAPI Backend
 "I don't solve problems alone. I orchestrate intelligence."
 """
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 from config import settings
 from models import ProjectRequest, AIRAState, Planet, PlanetStatus
 from core.orchestrator import run_aira_pipeline, get_aira_graph
+from deps import require_auth, get_current_user
+from database import (
+    init_db, create_project as db_create_project, get_user_projects,
+    get_project as db_get_project, get_project_by_id_only,
+    update_project as db_update_project, update_project_internal,
+    delete_project as db_delete_project,
+)
 import uvicorn, json, os, uuid, asyncio, zipfile, io, tempfile
 from datetime import datetime
 from typing import Dict, Any, List
@@ -24,31 +31,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Persistence ──────────────────────────────────────────────────────────────
-PROJECTS_DB = os.path.join(settings.OUTPUT_DIR, "_projects_db.json")
+# ─── Auth routes ──────────────────────────────────────────────────────────────
+from auth_routes import router as auth_router
+app.include_router(auth_router)
 
-def _load_projects() -> Dict[str, Any]:
-    if os.path.exists(PROJECTS_DB):
-        try:
-            with open(PROJECTS_DB, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
+@app.on_event("startup")
+async def startup():
+    await init_db()
 
-def _save_projects():
-    os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
-    try:
-        with open(PROJECTS_DB, "w", encoding="utf-8") as f:
-            json.dump(projects_store, f, indent=2, default=str)
-    except Exception:
-        pass
-
-# ─── In-memory stores ─────────────────────────────────────────────────────────
-projects_store: Dict[str, Any] = _load_projects()
+# ─── In-memory runtime cache for active projects + SSE queues ─────────────────
+# Projects are persisted in SQLite. This dict caches active project state
+# for fast SSE/WS delivery during pipeline execution.
+projects_store: Dict[str, Any] = {}
 sse_queues: Dict[str, List[asyncio.Queue]] = {}
 ws_connections: Dict[str, List[WebSocket]] = {}
 
+# Map project_id -> user_id for SSE/WS auth
+_project_user_map: Dict[str, str] = {}
 
 def _str_statuses(statuses: dict) -> dict:
     """Normalize planet_statuses keys/values to plain strings (JSON-safe)."""
@@ -70,28 +69,38 @@ async def health():
 
 # ─── Projects ─────────────────────────────────────────────────────────────────
 @app.post("/api/projects")
-async def create_project(request: ProjectRequest, background_tasks: BackgroundTasks):
+async def create_project(request: ProjectRequest, background_tasks: BackgroundTasks,
+                         user: dict = Depends(require_auth)):
+    user_id = user["id"]
     project_id = str(uuid.uuid4())
     output_dir = os.path.join(settings.OUTPUT_DIR, project_id)
     os.makedirs(output_dir, exist_ok=True)
 
     from models import Planet
+    planet_statuses = {p.value: "idle" for p in Planet}
+    planet_statuses["aira"] = "active"
+
+    # Persist to database
+    await db_create_project(project_id, user_id, request.idea, request.dict())
+
+    # Cache in memory for runtime
     projects_store[project_id] = {
         "id": project_id,
+        "user_id": user_id,
         "status": "running",
         "request": request.dict(),
+        "idea": request.idea,
         "created_at": datetime.utcnow().isoformat(),
-        "planet_statuses": {p.value: "idle" for p in Planet},
+        "planet_statuses": planet_statuses,
         "messages": [],
         "final_output": None,
         "errors": [],
         "output_dir": output_dir,
     }
-    projects_store[project_id]["planet_statuses"]["aira"] = "active"
     sse_queues[project_id] = []
-    _save_projects()
+    _project_user_map[project_id] = user_id
 
-    background_tasks.add_task(_run_background, project_id, request, output_dir)
+    background_tasks.add_task(_run_background, project_id, request, output_dir, user_id)
 
     return {
         "project_id": project_id,
@@ -100,7 +109,7 @@ async def create_project(request: ProjectRequest, background_tasks: BackgroundTa
         "stream_url": f"/api/projects/{project_id}/stream",
     }
 
-async def _run_background(project_id: str, request: ProjectRequest, output_dir: str):
+async def _run_background(project_id: str, request: ProjectRequest, output_dir: str, user_id: str):
     async def on_event(event: dict):
         """Called after each planet node completes."""
         ps = event.get("planet_statuses", {})
@@ -110,9 +119,7 @@ async def _run_background(project_id: str, request: ProjectRequest, output_dir: 
 
         if project_id in projects_store:
             if ps:
-                projects_store[project_id]["planet_statuses"].update(
-                    _str_statuses(ps)
-                )
+                projects_store[project_id]["planet_statuses"].update(_str_statuses(ps))
             if msg_text:
                 projects_store[project_id]["messages"].append({
                     "planet": planet,
@@ -123,7 +130,17 @@ async def _run_background(project_id: str, request: ProjectRequest, output_dir: 
                 })
             if event.get("event") == "completed" and event.get("final_output"):
                 projects_store[project_id]["final_output"] = event["final_output"]
-            _save_projects()
+
+            # Sync to database
+            try:
+                await db_update_project_internal(
+                    project_id,
+                    planet_statuses_json=projects_store[project_id]["planet_statuses"],
+                    messages_json=projects_store[project_id]["messages"],
+                    final_output_json=projects_store[project_id].get("final_output"),
+                )
+            except Exception:
+                pass
 
         # Push to SSE queues
         sse_payload = {"data": json.dumps(event, default=str)}
@@ -132,7 +149,6 @@ async def _run_background(project_id: str, request: ProjectRequest, output_dir: 
         await _broadcast_ws(project_id, event)
 
     try:
-        # Emit initial event
         await on_event({
             "event": "started",
             "planet": "aira",
@@ -161,55 +177,91 @@ async def _run_background(project_id: str, request: ProjectRequest, output_dir: 
                 "completed_at": datetime.utcnow().isoformat(),
                 "output_dir": final_state.output_dir,
             })
-            _save_projects()
 
-        # Signal stream done
+        # Final DB sync
+        try:
+            await db_update_project_internal(
+                project_id,
+                status="completed",
+                planet_statuses_json=projects_store[project_id]["planet_statuses"],
+                messages_json=projects_store[project_id]["messages"],
+                final_output_json=projects_store[project_id].get("final_output"),
+                errors_json=projects_store[project_id].get("errors", []),
+                output_dir=projects_store[project_id].get("output_dir", ""),
+                completed_at=datetime.utcnow().isoformat(),
+            )
+        except Exception:
+            pass
+
         for q in sse_queues.get(project_id, []):
             await q.put(None)
 
     except Exception as e:
         if project_id in projects_store:
             projects_store[project_id].update({"status": "failed", "errors": [str(e)]})
-            _save_projects()
+        try:
+            await db_update_project_internal(project_id, status="failed", errors_json=[str(e)])
+        except Exception:
+            pass
         await on_event({"event": "error", "planet": "aira", "message": f"Pipeline error: {e}"})
         for q in sse_queues.get(project_id, []):
             await q.put(None)
 
 @app.get("/api/projects/{project_id}")
-async def get_project(project_id: str):
-    if project_id not in projects_store:
+async def get_project(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    # Check in-memory cache first (active projects)
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        return projects_store[project_id]
+    # Fall back to database
+    project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
-    return projects_store[project_id]
+    return project
 
 @app.get("/api/projects")
-async def list_projects():
+async def list_projects(user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    projects = await get_user_projects(user_id)
     return {
         "projects": [
-            {"id": p["id"], "status": p["status"], "created_at": p["created_at"],
-             "idea": p["request"].get("idea", "")[:100]}
-            for p in sorted(projects_store.values(), key=lambda x: x["created_at"], reverse=True)
+            {
+                "id": p["id"],
+                "status": p["status"],
+                "created_at": p["created_at"],
+                "idea": (p.get("idea") or "")[:100],
+            }
+            for p in projects
         ],
-        "total": len(projects_store),
+        "total": len(projects),
     }
 
 @app.delete("/api/projects/{project_id}")
-async def delete_project(project_id: str):
-    if project_id not in projects_store:
+async def delete_project(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    deleted = await db_delete_project(project_id, user_id)
+    if not deleted:
         raise HTTPException(404, "Project not found")
-    del projects_store[project_id]
-    _save_projects()
+    # Clean up runtime cache
+    projects_store.pop(project_id, None)
+    sse_queues.pop(project_id, None)
+    _project_user_map.pop(project_id, None)
     return {"deleted": project_id}
 
 # ─── SSE Stream ───────────────────────────────────────────────────────────────
 @app.get("/api/projects/{project_id}/stream")
-async def stream_project(project_id: str):
-    if project_id not in projects_store:
+async def stream_project(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    # Verify ownership
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
 
-    project = projects_store[project_id]
-
     async def generator():
-        # If already done, replay messages then close
         if project["status"] in ("completed", "failed"):
             for msg in project.get("messages", []):
                 yield {"data": json.dumps({
@@ -229,11 +281,9 @@ async def stream_project(project_id: str):
                 }, default=str)}
             return
 
-        # Register queue for live stream
         q: asyncio.Queue = asyncio.Queue()
         sse_queues.setdefault(project_id, []).append(q)
 
-        # Replay already-accumulated messages
         for msg in project.get("messages", []):
             yield {"data": json.dumps({
                 "event": msg.get("event", "update"),
@@ -250,13 +300,9 @@ async def stream_project(project_id: str):
                 except asyncio.TimeoutError:
                     yield {"data": json.dumps({"event": "ping", "message": ""})}
                     continue
-
                 if item is None:
-                    break  # Stream done
-
-                yield item  # item is already {"data": "..."}
-
-                # Check if the data signals completion
+                    break
+                yield item
                 try:
                     parsed = json.loads(item["data"])
                     if parsed.get("event") in ("completed", "error"):
@@ -271,16 +317,23 @@ async def stream_project(project_id: str):
 
 # ─── Files ────────────────────────────────────────────────────────────────────
 @app.get("/api/projects/{project_id}/files")
-async def list_files(project_id: str):
-    if project_id not in projects_store:
+async def list_files(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    # Verify ownership
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
-    output_dir = projects_store[project_id].get("output_dir", "")
+
+    output_dir = project.get("output_dir", "")
     if not output_dir or not os.path.exists(output_dir):
         return {"files": [], "tree": []}
 
     files = []
     for root, dirs, fnames in os.walk(output_dir):
-        # Skip __pycache__ and .git
         dirs[:] = [d for d in dirs if d not in ("__pycache__", ".git", "node_modules", ".next")]
         for fname in fnames:
             full = os.path.join(root, fname)
@@ -291,31 +344,33 @@ async def list_files(project_id: str):
                 "size": os.path.getsize(full),
                 "ext": pathlib.Path(fname).suffix,
             })
-
     return {"files": files, "total": len(files)}
 
 @app.get("/api/projects/{project_id}/file")
-async def read_file(project_id: str, path: str):
-    if project_id not in projects_store:
+async def read_file(project_id: str, path: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
-    output_dir = projects_store[project_id].get("output_dir", "")
+
+    output_dir = project.get("output_dir", "")
     if not output_dir:
         raise HTTPException(404, "No output dir")
 
-    # Sanitize path traversal
     full = os.path.normpath(os.path.join(output_dir, path))
     if not full.startswith(os.path.normpath(output_dir)):
         raise HTTPException(400, "Invalid path")
-
     if not os.path.exists(full) or not os.path.isfile(full):
         raise HTTPException(404, "File not found")
 
     ext = pathlib.Path(full).suffix.lower()
-    # Return binary for non-text files
     binary_exts = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".eot", ".svg"}
     if ext in binary_exts:
         return FileResponse(full)
-
     try:
         with open(full, "r", encoding="utf-8") as f:
             content = f.read()
@@ -324,10 +379,17 @@ async def read_file(project_id: str, path: str):
         return FileResponse(full)
 
 @app.get("/api/projects/{project_id}/download/{filename:path}")
-async def download_file(project_id: str, filename: str):
-    if project_id not in projects_store:
+async def download_file(project_id: str, filename: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
-    output_dir = projects_store[project_id].get("output_dir", "")
+
+    output_dir = project.get("output_dir", "")
     if not output_dir:
         raise HTTPException(404, "No output dir")
     file_path = os.path.join(output_dir, filename)
@@ -343,7 +405,6 @@ SKIP_IN_ZIP = {
 }
 
 def _should_skip(path: str) -> bool:
-    """Returns True if the path component should be excluded from the ZIP."""
     parts = pathlib.Path(path).parts
     for part in parts:
         if part in SKIP_IN_ZIP:
@@ -352,23 +413,21 @@ def _should_skip(path: str) -> bool:
             return True
     return False
 
-
 @app.get("/api/projects/{project_id}/download-zip")
-async def download_project_zip(project_id: str):
-    """
-    Creates and streams a ZIP archive of EVERYTHING generated for the project:
-    research, architecture, design, source code, deployment configs, and docs.
-    """
-    if project_id not in projects_store:
+async def download_project_zip(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
 
-    project = projects_store[project_id]
-    # Allow download even if still running (partial output)
     output_dir = project.get("output_dir", "")
     if not output_dir or not os.path.exists(output_dir):
         raise HTTPException(404, "No output directory found for this project")
 
-    # Derive a nice archive name
     project_title = (
         (project.get("final_output") or {}).get("project_title")
         or project.get("request", {}).get("idea", "aira-project")[:40]
@@ -376,7 +435,6 @@ async def download_project_zip(project_id: str):
     safe_name = "".join(c if c.isalnum() or c in "-_" else "-" for c in project_title.lower().replace(" ", "-"))
     zip_filename = f"AIRA-{safe_name}.zip"
 
-    # Build ZIP from the ENTIRE output directory
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for root, dirs, files in os.walk(output_dir):
@@ -390,10 +448,8 @@ async def download_project_zip(project_id: str):
                     zf.write(full_path, rel_path)
                 except Exception:
                     pass
-
     zip_buffer.seek(0)
     zip_bytes = zip_buffer.read()
-
     return StreamingResponse(
         io.BytesIO(zip_bytes),
         media_type="application/zip",
@@ -407,7 +463,7 @@ async def download_project_zip(project_id: str):
 
 # ─── Upload ───────────────────────────────────────────────────────────────────
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), user: dict = Depends(require_auth)):
     file_id = str(uuid.uuid4())
     ext = os.path.splitext(file.filename or "file.bin")[1]
     save_path = os.path.join(settings.UPLOAD_DIR, f"{file_id}{ext}")
@@ -416,7 +472,7 @@ async def upload_file(file: UploadFile = File(...)):
         f.write(content)
     return {"file_id": file_id, "filename": file.filename, "size": len(content)}
 
-# ─── Planets ─────────────────────────────────────────────────────────────────
+# ─── Planets (public) ────────────────────────────────────────────────────────
 @app.get("/api/planets")
 async def get_planets():
     return {"planets": [
@@ -436,7 +492,9 @@ async def get_planets():
 @app.websocket("/ws/{project_id}")
 async def ws_endpoint(websocket: WebSocket, project_id: str):
     await websocket.accept()
+    # Note: WebSocket auth is handled via query param token in production
     ws_connections.setdefault(project_id, []).append(websocket)
+    # Send cached state if available
     if project_id in projects_store:
         await websocket.send_json(projects_store[project_id])
     try:
@@ -457,54 +515,67 @@ async def _broadcast_ws(project_id: str, message: dict):
     for ws in dead:
         ws_connections[project_id].remove(ws)
 
-# ─── Live Preview (boot the generated app) ────────────────────────────────────────────────────────
-
+# ─── Live Preview (boot the generated app) ───────────────────────────────────
 from core.preview import start_preview as _start_preview, get_preview as _get_preview, stop_preview as _stop_preview
 
 @app.post("/api/projects/{project_id}/preview/start")
-async def preview_start(project_id: str):
-    """Boot the generated frontend + backend so the user can test the real app."""
-    if project_id not in projects_store:
+async def preview_start(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
-    project = projects_store[project_id]
     return await asyncio.to_thread(
         _start_preview, project_id, project.get("output_dir", ""), settings.GEMINI_API_KEY
     )
 
 @app.get("/api/projects/{project_id}/preview")
-async def preview_status(project_id: str):
-    if project_id not in projects_store:
+async def preview_status(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
     return await asyncio.to_thread(_get_preview, project_id)
 
 @app.post("/api/projects/{project_id}/preview/stop")
-async def preview_stop(project_id: str):
-    if project_id not in projects_store:
+async def preview_stop(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
     return await asyncio.to_thread(_stop_preview, project_id)
 
 @app.post("/api/previews/stop-all")
 async def preview_stop_all():
-    """Kill ALL preview processes — clean slate."""
     from core.preview import stop_all_previews
     return await asyncio.to_thread(stop_all_previews)
 
 @app.get("/api/projects/{project_id}/preview-info")
-async def get_preview_info(project_id: str):
-    """
-    Returns info about the generated project so the frontend can show
-    a live preview panel with setup instructions and file structure.
-    """
-    if project_id not in projects_store:
+async def get_preview_info(project_id: str, user: dict = Depends(require_auth)):
+    user_id = user["id"]
+    project = None
+    if project_id in projects_store and projects_store[project_id].get("user_id") == user_id:
+        project = projects_store[project_id]
+    else:
+        project = await db_get_project(project_id, user_id)
+    if not project:
         raise HTTPException(404, "Project not found")
 
-    project = projects_store[project_id]
     output_dir = project.get("output_dir", "")
-
     if not output_dir or not os.path.exists(output_dir):
         return {"available": False, "message": "No output yet"}
 
-    # Find the generated project folder inside 04_Development
     dev_dir = os.path.join(output_dir, "04_Development")
     project_folder = None
     project_name = None
@@ -520,7 +591,6 @@ async def get_preview_info(project_id: str):
     has_backend = project_folder and os.path.isdir(os.path.join(project_folder, "backend"))
     has_docker = project_folder and os.path.isfile(os.path.join(project_folder, "docker-compose.yml"))
 
-    # Count files
     total_files = 0
     if project_folder and os.path.isdir(project_folder):
         for _, _, fnames in os.walk(project_folder):

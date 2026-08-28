@@ -7,8 +7,9 @@ import {
   ArrowRight, Sparkles, Brain, Globe, Code2, Layers, Palette,
   FileText, Shield, Rocket, TrendingUp, Zap, Search, ChevronRight,
   CheckCircle, Cpu, Target, Users, BarChart3, Lightbulb,
-  ChevronDown, Star, Orbit, Eye,
+  ChevronDown, Star, Orbit, Eye, LogIn,
 } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 const PLANET_ICONS: Record<string, any> = {
   mercury: Search, mars: Layers, venus: Palette, earth: Code2,
@@ -113,8 +114,10 @@ const HOW_IT_WORKS_STEPS = [
 
 export default function HomePage() {
   const [activeStep, setActiveStep] = useState(0)
+  const { user } = useAuthStore()
 
   useEffect(() => {
+    useAuthStore.getState().loadFromStorage()
     const interval = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % HOW_IT_WORKS_STEPS.length)
     }, 4000)
@@ -135,11 +138,26 @@ export default function HomePage() {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="btn-ghost text-sm py-2 px-4">Dashboard</Link>
-          <Link href="/project/new" className="btn-primary text-sm py-2.5 px-5 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            Launch AIRA
-          </Link>
+          {user ? (
+            <>
+              <Link href="/dashboard" className="btn-ghost text-sm py-2 px-4">Dashboard</Link>
+              <Link href="/project/new" className="btn-primary text-sm py-2.5 px-5 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5" />
+                Launch AIRA
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="btn-ghost text-sm py-2 px-4 flex items-center gap-1.5">
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In
+              </Link>
+              <Link href="/register" className="btn-primary text-sm py-2.5 px-5 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5" />
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -170,10 +188,10 @@ export default function HomePage() {
           </p>
 
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/project/new"
+            <Link href={user ? '/project/new' : '/register'}
               className="btn-primary inline-flex items-center gap-2.5 text-sm py-3.5 px-7">
               <Brain className="w-4 h-4" />
-              Start Building
+              {user ? 'Start Building' : 'Get Started'}
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/planets"
@@ -527,10 +545,10 @@ export default function HomePage() {
               Describe your project. AIRA&apos;s nine planets handle research, architecture, design, code,
               business, documentation, testing, evolution, and deployment.
             </p>
-            <Link href="/project/new"
+            <Link href={user ? '/project/new' : '/register'}
               className="btn-primary inline-flex items-center gap-2.5 text-sm py-3.5 px-7">
               <Sparkles className="w-4 h-4" />
-              Launch AIRA Pipeline
+              {user ? 'Launch AIRA Pipeline' : 'Get Started Free'}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </motion.div>

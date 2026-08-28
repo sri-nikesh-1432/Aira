@@ -161,6 +161,7 @@ export default function ProjectWorkspacePage() {
       }
     }).catch(() => setLoading(false))
 
+    // Fallback poll every 12s in case SSE disconnects
     const poll = setInterval(async () => {
       try {
         const p = await getProject(projectId)
@@ -170,7 +171,7 @@ export default function ProjectWorkspacePage() {
           if (p.status === 'completed') loadFiles(projectId)
         }
       } catch {}
-    }, 4000)
+    }, 12000)
 
     return () => { cleanup?.(); clearInterval(poll) }
   }, [projectId])

@@ -1,9 +1,11 @@
 """
 ☀️ AIRA Live Preview — boots each generated project independently.
 Each project gets its OWN frontend + backend on unique ports.
+No cross-contamination between projects.
 """
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -42,7 +44,7 @@ def _find_generated_project(output_dir):
     """Find the actual generated project directory (with frontend/ and backend/)."""
     if not output_dir or not os.path.isdir(output_dir):
         return None
-    
+
     # Check 04_Development first (standard structure)
     dev = os.path.join(output_dir, "04_Development")
     if os.path.isdir(dev):
@@ -58,11 +60,11 @@ def _find_generated_project(output_dir):
         if candidates:
             candidates.sort(key=lambda x: -x[0])
             return candidates[0][1]
-    
+
     # Fallback: check if output_dir itself has frontend/
     if os.path.isdir(os.path.join(output_dir, "frontend")):
         return output_dir
-    
+
     return None
 
 def _kill_tree(pid):
@@ -70,7 +72,7 @@ def _kill_tree(pid):
         return
     try:
         if _is_windows():
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], 
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
                          capture_output=True, timeout=15)
         else:
             try:
@@ -80,14 +82,53 @@ def _kill_tree(pid):
     except Exception:
         pass
 
+def _kill_orphaned_previews():
+    """
+    Kill ALL orphaned preview processes on preview ports (3000-3999, 8100-8999).
+    This prevents old previews from contaminating new ones.
+    """
+    if not _is_windows():
+        return
+    try:
+        # Find node processes on ports 3000-3999 (frontend previews)
+        result = subprocess.run(
+            ["netstat", "-ano"], capture_output=True, timeout=10
+        )
+        lines = result.stdout.decode(errors="ignore").split("\n")
+        pids_to_kill = set()
+
+        for line in lines:
+            # Match LISTENING on preview ports
+            m = re.search(r':(3\d{3}|81\d{2})\s+.*?LISTENING\s+(\d+)', line)
+            if m:
+                port = int(m.group(1))
+                pid = int(m.group(2))
+                # Only kill if it's NOT our main backend (8000) or main frontend (5174)
+                if port != 8000 and port != 5174 and pid > 0:
+                    pids_to_kill.add(pid)
+
+        for pid in pids_to_kill:
+            _kill_tree(pid)
+
+        if pids_to_kill:
+            time.sleep(1)
+    except Exception:
+        pass
+
 def _stop_preview_for_project(project_id):
     existing = PREVIEWS.get(project_id)
     if existing:
         for pid in existing.get("pids", []):
             _kill_tree(pid)
-        # Give processes time to die
         time.sleep(0.5)
         PREVIEWS.pop(project_id, None)
+
+def _stop_all_previews():
+    """Stop ALL running previews — clean slate."""
+    for pid in list(PREVIEWS.keys()):
+        _stop_preview_for_project(pid)
+    # Also kill orphans
+    _kill_orphaned_previews()
 
 def _log_path(project_dir, name="preview"):
     log_dir = os.path.join(project_dir, "..", "..")
@@ -99,12 +140,12 @@ def _spawn_backend(project_dir, port, frontend_port):
     be_dir = os.path.join(project_dir, "backend")
     if not os.path.isdir(be_dir):
         return None
-    
+
     env = os.environ.copy()
     env["CORS_ORIGINS"] = f"http://localhost:{frontend_port},http://127.0.0.1:{frontend_port}"
-    env["PYTHONPATH"] = be_dir  # Ensure imports work from backend dir
+    env["PYTHONPATH"] = be_dir
     flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
-    
+
     log_file = open(_log_path(project_dir, "backend"), "a", encoding="utf-8", buffering=1)
     return subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", str(port)],
@@ -118,12 +159,12 @@ def _spawn_frontend(project_dir, port, backend_port):
     fe_dir = os.path.join(project_dir, "frontend")
     if not os.path.isdir(fe_dir):
         return None
-    
+
     env = os.environ.copy()
     env["NEXT_PUBLIC_API_URL"] = f"http://localhost:{backend_port}"
     env["PORT"] = str(port)
     flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
-    
+
     log_file = open(_log_path(project_dir, "frontend"), "a", encoding="utf-8", buffering=1)
     return subprocess.Popen(
         [_npm_cmd(), "run", "dev", "--", "-p", str(port), "-H", "0.0.0.0"],
@@ -137,9 +178,8 @@ def get_preview(project_id):
     info = PREVIEWS.get(project_id)
     if not info:
         return {"status": "not_started", "available": False, "message": "Preview not started."}
-    
+
     if info.get("status") == "starting":
-        # Check if frontend is ready
         fe_url = info.get("frontend_url", "")
         if fe_url and _url_ready(fe_url, timeout=3):
             info["status"] = "ready"
@@ -151,16 +191,14 @@ def get_preview(project_id):
         elif time.time() - info.get("started_ts", time.time()) > 600:
             info["status"] = "error"
             info["error"] = "Timed out preparing the preview (10 min limit)."
-    
+
     elif info.get("status") == "ready":
-        # Double-check it's still alive
         fe_url = info.get("frontend_url", "")
         if fe_url and not _url_ready(fe_url, timeout=3):
-            # Try once more with longer timeout
             if not _url_ready(fe_url, timeout=5):
                 info["status"] = "stopped"
                 info["message"] = "Preview server is no longer reachable."
-    
+
     return info
 
 def start_preview(project_id, output_dir, gemini_key=""):
@@ -169,8 +207,10 @@ def start_preview(project_id, output_dir, gemini_key=""):
     if existing and existing.get("status") in ("ready", "starting"):
         return get_preview(project_id)
 
+    # Kill ALL orphaned previews first — clean slate
+    _kill_orphaned_previews()
     _stop_preview_for_project(project_id)
-    
+
     project_dir = _find_generated_project(output_dir)
     if not project_dir:
         info = {
@@ -183,10 +223,10 @@ def start_preview(project_id, output_dir, gemini_key=""):
 
     fe_dir = os.path.join(project_dir, "frontend")
     be_dir = os.path.join(project_dir, "backend")
-    
+
     has_frontend = os.path.isdir(fe_dir) and os.path.isfile(os.path.join(fe_dir, "package.json"))
     has_backend = os.path.isdir(be_dir) and os.path.isfile(os.path.join(be_dir, "main.py"))
-    
+
     if not has_frontend:
         info = {"status": "error", "available": False,
                 "error": "No frontend directory with package.json found.",
@@ -197,20 +237,23 @@ def start_preview(project_id, output_dir, gemini_key=""):
     # Allocate unique ports
     frontend_port = _free_port(3000, 3999)
     backend_port = _free_port(8100, 8999) if has_backend else 0
-    
+
     if not frontend_port:
         info = {"status": "error", "available": False, "error": "Could not allocate a free port for frontend."}
         PREVIEWS[project_id] = info
         return info
 
+    project_name = os.path.basename(project_dir)
+
     info = {
         "status": "starting", "available": True,
         "project_id": project_id, "project_dir": project_dir,
-        "project_name": os.path.basename(project_dir),
+        "project_name": project_name,
         "frontend_port": frontend_port, "backend_port": backend_port,
         "frontend_url": f"http://localhost:{frontend_port}",
         "backend_url": f"http://localhost:{backend_port}" if backend_port else None,
-        "message": "Preparing live preview...", "error": None,
+        "message": f"Preparing preview for: {project_name}",
+        "error": None,
         "started_ts": time.time(), "pids": [],
         "has_frontend": has_frontend, "has_backend": has_backend,
     }
@@ -233,7 +276,7 @@ def start_preview(project_id, output_dir, gemini_key=""):
                 info["install_error"] = info["error"]
                 PREVIEWS[project_id] = info
                 return info
-        
+
         # Step 2: Install backend deps (only if needed)
         if has_backend:
             req_file = os.path.join(be_dir, "requirements.txt")
@@ -249,8 +292,8 @@ def start_preview(project_id, output_dir, gemini_key=""):
                     cwd=be_dir, capture_output=True, timeout=300, env=pip_env, creationflags=flags,
                 )
                 if result.returncode == 0:
-                    open(site_pkgs, "w").close()  # Mark as installed
-        
+                    open(site_pkgs, "w").close()
+
         # Step 3: Start backend
         if has_backend:
             info["message"] = "Starting backend API..."
@@ -258,18 +301,18 @@ def start_preview(project_id, output_dir, gemini_key=""):
             be_proc = _spawn_backend(project_dir, backend_port, frontend_port)
             if be_proc:
                 info["pids"].append(be_proc.pid)
-            time.sleep(2)  # Give backend time to start
-        
+            time.sleep(2)
+
         # Step 4: Start frontend
         info["message"] = "Starting frontend (first compile takes a moment)..."
         PREVIEWS[project_id] = info
         fe_proc = _spawn_frontend(project_dir, frontend_port, backend_port or 8001)
         if fe_proc:
             info["pids"].append(fe_proc.pid)
-        
+
         time.sleep(3)
         return get_preview(project_id)
-    
+
     except Exception as e:
         info["status"] = "error"
         info["error"] = str(e)
@@ -283,11 +326,16 @@ def stop_preview(project_id):
     info = PREVIEWS.get(project_id)
     if not info:
         return {"status": "not_started", "message": "No preview running."}
-    
+
     for pid in info.get("pids", []):
         _kill_tree(pid)
-    
+
     info["status"] = "stopped"
     info["message"] = "Preview stopped."
     info["pids"] = []
     return {"status": "stopped", "message": "Preview stopped."}
+
+def stop_all_previews():
+    """Emergency: stop all preview processes."""
+    _stop_all_previews()
+    return {"status": "stopped", "message": "All previews stopped."}

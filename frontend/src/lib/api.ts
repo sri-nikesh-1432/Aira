@@ -128,3 +128,8 @@ export async function stopPreview(projectId: string): Promise<any> {
   const res = await api.post(`/api/projects/${projectId}/preview/stop`)
   return res.data
 }
+
+export async function stopAllPreviews(): Promise<any> {
+  const res = await api.post(`/api/previews/stop-all`)
+  return res.data
+}

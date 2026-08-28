@@ -483,6 +483,12 @@ async def preview_stop(project_id: str):
         raise HTTPException(404, "Project not found")
     return await asyncio.to_thread(_stop_preview, project_id)
 
+@app.post("/api/previews/stop-all")
+async def preview_stop_all():
+    """Kill ALL preview processes — clean slate."""
+    from core.preview import stop_all_previews
+    return await asyncio.to_thread(stop_all_previews)
+
 @app.get("/api/projects/{project_id}/preview-info")
 async def get_preview_info(project_id: str):
     """

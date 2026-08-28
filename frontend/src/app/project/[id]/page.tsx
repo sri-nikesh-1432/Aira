@@ -180,6 +180,16 @@ export default function ProjectWorkspacePage() {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' })
   }, [events])
 
+  // Cleanup poll interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollPreviewRef.current) {
+        clearInterval(pollPreviewRef.current)
+        pollPreviewRef.current = null
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (events.length === 0) return
     const latest = events[events.length - 1]
@@ -249,14 +259,21 @@ export default function ProjectWorkspacePage() {
         if (st?.frontend_url) setPreviewUrl(st.frontend_url)
         if (st?.backend_url) setPreviewBackendUrl(st.backend_url)
         setActiveTab('computer')
-        // Poll until ready
+        addTerminalLine(`$ Found preview still booting — polling...`)
         pollPreview()
       }
     } catch {}
   }
 
+  const pollPreviewRef = useRef<NodeJS.Timeout | null>(null)
+
   const pollPreview = () => {
-    const poll = setInterval(async () => {
+    // Clear any existing poll to prevent duplicate intervals
+    if (pollPreviewRef.current) {
+      clearInterval(pollPreviewRef.current)
+      pollPreviewRef.current = null
+    }
+    pollPreviewRef.current = setInterval(async () => {
       try {
         const st = await getPreviewStatus(projectId)
         if (st?.frontend_url) setPreviewUrl(st.frontend_url)
@@ -264,28 +281,31 @@ export default function ProjectWorkspacePage() {
         if (st?.status === 'ready') {
           setPreviewState('ready')
           addTerminalLine(`$ Preview ready: ${st.frontend_url}`)
-          clearInterval(poll)
+          clearInterval(pollPreviewRef.current!)
+          pollPreviewRef.current = null
         } else if (st?.status === 'error' || st?.status === 'stopped') {
           setPreviewState('error')
           setPreviewError(st.error || `Preview ${st.status}`)
           addTerminalLine(`$ Preview error: ${st.error || st.status}`)
-          clearInterval(poll)
+          clearInterval(pollPreviewRef.current!)
+          pollPreviewRef.current = null
         } else if (st?.message) {
           addTerminalLine(`$ ${st.message}`)
         }
       } catch {
-        clearInterval(poll)
+        clearInterval(pollPreviewRef.current!)
+        pollPreviewRef.current = null
         setPreviewState('error')
         setPreviewError('Lost connection while starting preview')
       }
-    }, 5000)
+    }, 4000)
   }
 
   const launchPreview = async () => {
     if (previewState === 'starting') return
     setPreviewState('starting')
     setPreviewError('')
-    addTerminalLine('$ Booting live preview of THIS project (installing deps + starting servers)...')
+    addTerminalLine('$ Booting live preview...')
     try {
       const info = await startPreview(projectId)
       if (info?.status === 'error') {
@@ -301,6 +321,8 @@ export default function ProjectWorkspacePage() {
         addTerminalLine(`$ Preview ready: ${info.frontend_url}`)
         return
       }
+      // Backend returned quickly — poll for readiness
+      addTerminalLine(`$ Backend started. Polling for frontend readiness...`)
       pollPreview()
     } catch (e: any) {
       setPreviewState('error')

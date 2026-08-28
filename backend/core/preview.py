@@ -9,6 +9,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 from datetime import datetime
@@ -33,7 +34,7 @@ def _free_port(lo=3000, hi=3999):
             continue
     return 0
 
-def _url_ready(url, timeout=3.0):
+def _url_ready(url, timeout=5.0):
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
             return resp.status < 500
@@ -90,7 +91,6 @@ def _kill_orphaned_previews():
     if not _is_windows():
         return
     try:
-        # Find node processes on ports 3000-3999 (frontend previews)
         result = subprocess.run(
             ["netstat", "-ano"], capture_output=True, timeout=10
         )
@@ -98,12 +98,10 @@ def _kill_orphaned_previews():
         pids_to_kill = set()
 
         for line in lines:
-            # Match LISTENING on preview ports
             m = re.search(r':(3\d{3}|81\d{2})\s+.*?LISTENING\s+(\d+)', line)
             if m:
                 port = int(m.group(1))
                 pid = int(m.group(2))
-                # Only kill if it's NOT our main backend (8000) or main frontend (5174)
                 if port != 8000 and port != 5174 and pid > 0:
                     pids_to_kill.add(pid)
 
@@ -127,7 +125,6 @@ def _stop_all_previews():
     """Stop ALL running previews — clean slate."""
     for pid in list(PREVIEWS.keys()):
         _stop_preview_for_project(pid)
-    # Also kill orphans
     _kill_orphaned_previews()
 
 def _log_path(project_dir, name="preview"):
@@ -173,6 +170,7 @@ def _spawn_frontend(project_dir, port, backend_port):
         creationflags=flags,
     )
 
+
 def get_preview(project_id):
     """Get current preview status, updating state as needed."""
     info = PREVIEWS.get(project_id)
@@ -181,7 +179,7 @@ def get_preview(project_id):
 
     if info.get("status") == "starting":
         fe_url = info.get("frontend_url", "")
-        if fe_url and _url_ready(fe_url, timeout=3):
+        if fe_url and _url_ready(fe_url, timeout=5):
             info["status"] = "ready"
             info["message"] = "Live preview is ready!"
             info["ready_at"] = datetime.utcnow().isoformat()
@@ -194,15 +192,87 @@ def get_preview(project_id):
 
     elif info.get("status") == "ready":
         fe_url = info.get("frontend_url", "")
-        if fe_url and not _url_ready(fe_url, timeout=3):
+        if fe_url and not _url_ready(fe_url, timeout=5):
             if not _url_ready(fe_url, timeout=5):
                 info["status"] = "stopped"
                 info["message"] = "Preview server is no longer reachable."
 
     return info
 
+
+def _boot_preview_background(project_id, project_dir, fe_dir, be_dir,
+                              has_backend, frontend_port, backend_port):
+    """Background thread: install deps + start servers. Non-blocking."""
+    info = PREVIEWS[project_id]
+
+    try:
+        # Step 1: Install frontend deps (only if node_modules doesn't exist)
+        node_modules = os.path.join(fe_dir, "node_modules")
+        if not os.path.isdir(node_modules):
+            info["message"] = "Installing frontend dependencies (first time, ~1-2 min)..."
+            PREVIEWS[project_id] = info
+            flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
+            install = subprocess.run(
+                [_npm_cmd(), "install", "--no-audit", "--no-fund", "--loglevel=error"],
+                cwd=fe_dir, capture_output=True, timeout=600, creationflags=flags,
+            )
+            if install.returncode != 0:
+                err = (install.stdout or install.stderr or b"").decode(errors="ignore")[-800:]
+                info["status"] = "error"
+                info["error"] = "npm install failed: " + err
+                info["install_error"] = info["error"]
+                PREVIEWS[project_id] = info
+                return
+
+        # Step 2: Install backend deps (only if needed)
+        if has_backend:
+            req_file = os.path.join(be_dir, "requirements.txt")
+            site_pkgs = os.path.join(be_dir, ".aira_deps_installed")
+            if os.path.isfile(req_file) and not os.path.exists(site_pkgs):
+                info["message"] = "Installing backend Python packages..."
+                PREVIEWS[project_id] = info
+                pip_env = os.environ.copy()
+                pip_env["PIP_QUIET"] = "1"
+                flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet"],
+                    cwd=be_dir, capture_output=True, timeout=300, env=pip_env, creationflags=flags,
+                )
+                if result.returncode == 0:
+                    open(site_pkgs, "w").close()
+
+        # Step 3: Start backend
+        if has_backend:
+            info["message"] = "Starting backend API server..."
+            PREVIEWS[project_id] = info
+            be_proc = _spawn_backend(project_dir, backend_port, frontend_port)
+            if be_proc:
+                info["pids"].append(be_proc.pid)
+            time.sleep(1)  # brief pause for backend to bind
+
+        # Step 4: Start frontend
+        info["message"] = "Starting frontend dev server (compiling...)"
+        PREVIEWS[project_id] = info
+        fe_proc = _spawn_frontend(project_dir, frontend_port, backend_port or 8001)
+        if fe_proc:
+            info["pids"].append(fe_proc.pid)
+
+        # Don't block — just return, the get_preview endpoint will poll for readiness
+        info["message"] = "Frontend compiling — this may take a moment on first run..."
+        PREVIEWS[project_id] = info
+
+    except Exception as e:
+        info["status"] = "error"
+        info["error"] = str(e)
+        for pid in info.get("pids", []):
+            _kill_tree(pid)
+        PREVIEWS[project_id] = info
+
+
 def start_preview(project_id, output_dir, gemini_key=""):
-    """Boot a generated project's frontend + backend on unique ports."""
+    """Boot a generated project's frontend + backend on unique ports.
+    Returns immediately — the preview starts in a background thread.
+    Poll get_preview() for readiness."""
     existing = PREVIEWS.get(project_id)
     if existing and existing.get("status") in ("ready", "starting"):
         return get_preview(project_id)
@@ -252,74 +322,24 @@ def start_preview(project_id, output_dir, gemini_key=""):
         "frontend_port": frontend_port, "backend_port": backend_port,
         "frontend_url": f"http://localhost:{frontend_port}",
         "backend_url": f"http://localhost:{backend_port}" if backend_port else None,
-        "message": f"Preparing preview for: {project_name}",
+        "message": "Preparing preview...",
         "error": None,
         "started_ts": time.time(), "pids": [],
         "has_frontend": has_frontend, "has_backend": has_backend,
     }
     PREVIEWS[project_id] = info
 
-    try:
-        # Step 1: Install frontend deps (only if node_modules doesn't exist)
-        if not os.path.isdir(os.path.join(fe_dir, "node_modules")):
-            info["message"] = "Installing frontend dependencies (first time)..."
-            PREVIEWS[project_id] = info
-            flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
-            install = subprocess.run(
-                [_npm_cmd(), "install", "--no-audit", "--no-fund", "--loglevel=error"],
-                cwd=fe_dir, capture_output=True, timeout=600, creationflags=flags,
-            )
-            if install.returncode != 0:
-                err = (install.stdout or install.stderr or b"").decode(errors="ignore")[-800:]
-                info["status"] = "error"
-                info["error"] = "npm install failed: " + err
-                info["install_error"] = info["error"]
-                PREVIEWS[project_id] = info
-                return info
+    # Launch the actual boot process in a background thread so we return immediately
+    t = threading.Thread(
+        target=_boot_preview_background,
+        args=(project_id, project_dir, fe_dir, be_dir,
+              has_backend, frontend_port, backend_port),
+        daemon=True,
+    )
+    t.start()
 
-        # Step 2: Install backend deps (only if needed)
-        if has_backend:
-            req_file = os.path.join(be_dir, "requirements.txt")
-            site_pkgs = os.path.join(be_dir, ".aira_deps_installed")
-            if os.path.isfile(req_file) and not os.path.exists(site_pkgs):
-                info["message"] = "Installing backend dependencies..."
-                PREVIEWS[project_id] = info
-                pip_env = os.environ.copy()
-                pip_env["PIP_QUIET"] = "1"
-                flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
-                result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet"],
-                    cwd=be_dir, capture_output=True, timeout=300, env=pip_env, creationflags=flags,
-                )
-                if result.returncode == 0:
-                    open(site_pkgs, "w").close()
+    return get_preview(project_id)
 
-        # Step 3: Start backend
-        if has_backend:
-            info["message"] = "Starting backend API..."
-            PREVIEWS[project_id] = info
-            be_proc = _spawn_backend(project_dir, backend_port, frontend_port)
-            if be_proc:
-                info["pids"].append(be_proc.pid)
-            time.sleep(2)
-
-        # Step 4: Start frontend
-        info["message"] = "Starting frontend (first compile takes a moment)..."
-        PREVIEWS[project_id] = info
-        fe_proc = _spawn_frontend(project_dir, frontend_port, backend_port or 8001)
-        if fe_proc:
-            info["pids"].append(fe_proc.pid)
-
-        time.sleep(3)
-        return get_preview(project_id)
-
-    except Exception as e:
-        info["status"] = "error"
-        info["error"] = str(e)
-        for pid in info.get("pids", []):
-            _kill_tree(pid)
-        PREVIEWS[project_id] = info
-        return info
 
 def stop_preview(project_id):
     """Stop all processes for a project preview."""

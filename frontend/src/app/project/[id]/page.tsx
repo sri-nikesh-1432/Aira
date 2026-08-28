@@ -283,26 +283,32 @@ export default function ProjectWorkspacePage() {
           addTerminalLine(`$ Preview ready: ${st.frontend_url}`)
           clearInterval(pollPreviewRef.current!)
           pollPreviewRef.current = null
+          launchPreviewRef.current = false
         } else if (st?.status === 'error' || st?.status === 'stopped') {
           setPreviewState('error')
           setPreviewError(st.error || `Preview ${st.status}`)
           addTerminalLine(`$ Preview error: ${st.error || st.status}`)
           clearInterval(pollPreviewRef.current!)
           pollPreviewRef.current = null
+          launchPreviewRef.current = false
         } else if (st?.message) {
           addTerminalLine(`$ ${st.message}`)
         }
       } catch {
         clearInterval(pollPreviewRef.current!)
         pollPreviewRef.current = null
+        launchPreviewRef.current = false
         setPreviewState('error')
         setPreviewError('Lost connection while starting preview')
       }
     }, 4000)
   }
 
+  const launchPreviewRef = useRef(false)
+
   const launchPreview = async () => {
-    if (previewState === 'starting') return
+    if (previewState === 'starting' || launchPreviewRef.current) return
+    launchPreviewRef.current = true
     setPreviewState('starting')
     setPreviewError('')
     addTerminalLine('$ Booting live preview...')
@@ -319,6 +325,7 @@ export default function ProjectWorkspacePage() {
       if (info?.status === 'ready') {
         setPreviewState('ready')
         addTerminalLine(`$ Preview ready: ${info.frontend_url}`)
+        launchPreviewRef.current = false
         return
       }
       // Backend returned quickly — poll for readiness
@@ -327,11 +334,17 @@ export default function ProjectWorkspacePage() {
     } catch (e: any) {
       setPreviewState('error')
       setPreviewError(e?.response?.data?.detail || 'Failed to start preview')
+      launchPreviewRef.current = false
     }
   }
 
   const handleStopPreview = async () => {
     try { await stopPreview(projectId) } catch {}
+    if (pollPreviewRef.current) {
+      clearInterval(pollPreviewRef.current)
+      pollPreviewRef.current = null
+    }
+    launchPreviewRef.current = false
     setPreviewState('idle')
     setPreviewUrl(null)
     setPreviewBackendUrl(null)

@@ -15,6 +15,7 @@ import urllib.request
 from datetime import datetime
 
 PREVIEWS: dict = {}
+_preview_lock = threading.Lock()  # Prevent concurrent starts for the same project
 
 
 def _is_windows():
@@ -171,6 +172,42 @@ def _spawn_frontend(project_dir, port, backend_port):
     )
 
 
+def _run_with_timeout(cmd, cwd, env, timeout_sec, creationflags=0):
+    """
+    Run a command using Popen + watchdog thread.
+    Avoids the Windows subprocess.run timeout bug (negative timeout values).
+    Returns (returncode, stdout, stderr).
+    """
+    proc = subprocess.Popen(
+        cmd, cwd=cwd, env=env,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        creationflags=creationflags,
+    )
+    killed = threading.Event()
+
+    def _watchdog():
+        killed.wait(timeout_sec)
+        if not killed.is_set():
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+    t = threading.Thread(target=_watchdog, daemon=True)
+    t.start()
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout_sec + 5)
+        return proc.returncode, stdout, stderr
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        return -1, b"", b"Process timed out"
+    finally:
+        killed.set()
+
+
 def get_preview(project_id):
     """Get current preview status, updating state as needed."""
     info = PREVIEWS.get(project_id)
@@ -204,6 +241,7 @@ def _boot_preview_background(project_id, project_dir, fe_dir, be_dir,
                               has_backend, frontend_port, backend_port):
     """Background thread: install deps + start servers. Non-blocking."""
     info = PREVIEWS[project_id]
+    flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
 
     try:
         # Step 1: Install frontend deps (only if node_modules doesn't exist)
@@ -211,13 +249,13 @@ def _boot_preview_background(project_id, project_dir, fe_dir, be_dir,
         if not os.path.isdir(node_modules):
             info["message"] = "Installing frontend dependencies (first time, ~1-2 min)..."
             PREVIEWS[project_id] = info
-            flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
-            install = subprocess.run(
+            returncode, stdout, stderr = _run_with_timeout(
                 [_npm_cmd(), "install", "--no-audit", "--no-fund", "--loglevel=error"],
-                cwd=fe_dir, capture_output=True, timeout=600, creationflags=flags,
+                cwd=fe_dir, env=os.environ.copy(),
+                timeout_sec=300, creationflags=flags,
             )
-            if install.returncode != 0:
-                err = (install.stdout or install.stderr or b"").decode(errors="ignore")[-800:]
+            if returncode != 0:
+                err = (stdout or stderr or b"").decode(errors="ignore")[-800:]
                 info["status"] = "error"
                 info["error"] = "npm install failed: " + err
                 info["install_error"] = info["error"]
@@ -233,12 +271,12 @@ def _boot_preview_background(project_id, project_dir, fe_dir, be_dir,
                 PREVIEWS[project_id] = info
                 pip_env = os.environ.copy()
                 pip_env["PIP_QUIET"] = "1"
-                flags = subprocess.CREATE_NO_WINDOW if _is_windows() else 0
-                result = subprocess.run(
+                resultcode, _, _ = _run_with_timeout(
                     [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet"],
-                    cwd=be_dir, capture_output=True, timeout=300, env=pip_env, creationflags=flags,
+                    cwd=be_dir, env=pip_env,
+                    timeout_sec=300, creationflags=flags,
                 )
-                if result.returncode == 0:
+                if resultcode == 0:
                     open(site_pkgs, "w").close()
 
         # Step 3: Start backend
@@ -251,7 +289,7 @@ def _boot_preview_background(project_id, project_dir, fe_dir, be_dir,
             time.sleep(1)  # brief pause for backend to bind
 
         # Step 4: Start frontend
-        info["message"] = "Starting frontend dev server (compiling...)"
+        info["message"] = "Starting frontend dev server (compiling...)..."
         PREVIEWS[project_id] = info
         fe_proc = _spawn_frontend(project_dir, frontend_port, backend_port or 8001)
         if fe_proc:
@@ -273,63 +311,65 @@ def start_preview(project_id, output_dir, gemini_key=""):
     """Boot a generated project's frontend + backend on unique ports.
     Returns immediately — the preview starts in a background thread.
     Poll get_preview() for readiness."""
-    existing = PREVIEWS.get(project_id)
-    if existing and existing.get("status") in ("ready", "starting"):
-        return get_preview(project_id)
+    with _preview_lock:
+        existing = PREVIEWS.get(project_id)
+        if existing and existing.get("status") in ("ready", "starting"):
+            return get_preview(project_id)
 
-    # Kill ALL orphaned previews first — clean slate
-    _kill_orphaned_previews()
-    _stop_preview_for_project(project_id)
+        # Kill ALL orphaned previews first — clean slate
+        _kill_orphaned_previews()
+        _stop_preview_for_project(project_id)
 
-    project_dir = _find_generated_project(output_dir)
-    if not project_dir:
+        project_dir = _find_generated_project(output_dir)
+        if not project_dir:
+            info = {
+                "status": "error", "available": False,
+                "error": "No generated project found. Run the pipeline first.",
+                "message": "No generated project with frontend/backend."
+            }
+            PREVIEWS[project_id] = info
+            return info
+
+        fe_dir = os.path.join(project_dir, "frontend")
+        be_dir = os.path.join(project_dir, "backend")
+
+        has_frontend = os.path.isdir(fe_dir) and os.path.isfile(os.path.join(fe_dir, "package.json"))
+        has_backend = os.path.isdir(be_dir) and os.path.isfile(os.path.join(be_dir, "main.py"))
+
+        if not has_frontend:
+            info = {"status": "error", "available": False,
+                    "error": "No frontend directory with package.json found.",
+                    "message": "Generated project has no frontend."}
+            PREVIEWS[project_id] = info
+            return info
+
+        # Allocate unique ports
+        frontend_port = _free_port(3000, 3999)
+        backend_port = _free_port(8100, 8999) if has_backend else 0
+
+        if not frontend_port:
+            info = {"status": "error", "available": False, "error": "Could not allocate a free port for frontend."}
+            PREVIEWS[project_id] = info
+            return info
+
+        project_name = os.path.basename(project_dir)
+
         info = {
-            "status": "error", "available": False,
-            "error": "No generated project found. Run the pipeline first.",
-            "message": "No generated project with frontend/backend."
+            "status": "starting", "available": True,
+            "project_id": project_id, "project_dir": project_dir,
+            "project_name": project_name,
+            "frontend_port": frontend_port, "backend_port": backend_port,
+            "frontend_url": f"http://localhost:{frontend_port}",
+            "backend_url": f"http://localhost:{backend_port}" if backend_port else None,
+            "message": "Preparing preview...",
+            "error": None,
+            "started_ts": time.time(), "pids": [],
+            "has_frontend": has_frontend, "has_backend": has_backend,
         }
         PREVIEWS[project_id] = info
-        return info
-
-    fe_dir = os.path.join(project_dir, "frontend")
-    be_dir = os.path.join(project_dir, "backend")
-
-    has_frontend = os.path.isdir(fe_dir) and os.path.isfile(os.path.join(fe_dir, "package.json"))
-    has_backend = os.path.isdir(be_dir) and os.path.isfile(os.path.join(be_dir, "main.py"))
-
-    if not has_frontend:
-        info = {"status": "error", "available": False,
-                "error": "No frontend directory with package.json found.",
-                "message": "Generated project has no frontend."}
-        PREVIEWS[project_id] = info
-        return info
-
-    # Allocate unique ports
-    frontend_port = _free_port(3000, 3999)
-    backend_port = _free_port(8100, 8999) if has_backend else 0
-
-    if not frontend_port:
-        info = {"status": "error", "available": False, "error": "Could not allocate a free port for frontend."}
-        PREVIEWS[project_id] = info
-        return info
-
-    project_name = os.path.basename(project_dir)
-
-    info = {
-        "status": "starting", "available": True,
-        "project_id": project_id, "project_dir": project_dir,
-        "project_name": project_name,
-        "frontend_port": frontend_port, "backend_port": backend_port,
-        "frontend_url": f"http://localhost:{frontend_port}",
-        "backend_url": f"http://localhost:{backend_port}" if backend_port else None,
-        "message": "Preparing preview...",
-        "error": None,
-        "started_ts": time.time(), "pids": [],
-        "has_frontend": has_frontend, "has_backend": has_backend,
-    }
-    PREVIEWS[project_id] = info
 
     # Launch the actual boot process in a background thread so we return immediately
+    # (lock released before thread starts so get_preview() can work)
     t = threading.Thread(
         target=_boot_preview_background,
         args=(project_id, project_dir, fe_dir, be_dir,

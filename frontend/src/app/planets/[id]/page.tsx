@@ -2,7 +2,6 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { PLANETS, type PlanetId } from '@/types'
@@ -34,10 +33,13 @@ export default function PlanetPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-3">
-          <span className="text-lg">{planet.symbol}</span>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
+               style={{ background: `${planet.color}12`, border: `1px solid ${planet.color}25` }}>
+            {planet.symbol}
+          </div>
           <div>
             <h1 className="font-bold text-sm" style={{ color: planet.color }}>{planet.name}</h1>
-            <p className="text-[10px] text-[#716B65]">{planet.title}</p>
+            <p className="text-[10px] text-[#716B65]">{planet.role}</p>
           </div>
         </div>
         <div className="flex-1" />

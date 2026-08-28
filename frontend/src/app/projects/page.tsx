@@ -1,23 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Plus, Trash2, ChevronRight, Sparkles,
-  Brain, FolderOpen,
+  Brain, FolderOpen, Search, X, Clock, CheckCircle,
+  AlertCircle, Loader2,
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { listProjects, deleteProject, checkHealth } from '@/lib/api'
 import { clsx } from 'clsx'
 import { formatDistanceToNow } from 'date-fns'
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  completed: { label: 'Completed', color: '#10B981' },
-  running: { label: 'Running', color: '#6366F1' },
-  failed: { label: 'Failed', color: '#EF4444' },
-  pending: { label: 'Pending', color: '#F59E0B' },
+const STATUS_META: Record<string, { label: string; color: string; icon: any }> = {
+  completed: { label: 'Completed', color: '#10B981', icon: CheckCircle },
+  running: { label: 'Running', color: '#6366F1', icon: Loader2 },
+  failed: { label: 'Failed', color: '#EF4444', icon: AlertCircle },
+  pending: { label: 'Pending', color: '#F59E0B', icon: Clock },
 }
 
 export default function ProjectsPage() {
@@ -26,6 +27,8 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [apiOnline, setApiOnline] = useState<boolean | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const refresh = () => {
     listProjects()
@@ -38,6 +41,29 @@ export default function ProjectsPage() {
     checkHealth().then(setApiOnline)
     refresh()
   }, [])
+
+  const filteredProjects = useMemo(() => {
+    let result = projects
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(p =>
+        (p.idea || '').toLowerCase().includes(q) ||
+        (p.id || '').toLowerCase().includes(q)
+      )
+    }
+    if (statusFilter !== 'all') {
+      result = result.filter(p => p.status === statusFilter)
+    }
+    return result
+  }, [projects, searchQuery, statusFilter])
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: projects.length }
+    projects.forEach(p => {
+      counts[p.status] = (counts[p.status] || 0) + 1
+    })
+    return counts
+  }, [projects])
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this project? This cannot be undone.')) return
@@ -56,7 +82,8 @@ export default function ProjectsPage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-8 max-w-6xl">
-          <div className="flex items-center justify-between mb-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-[#2C2420]">Projects</h1>
               <p className="text-sm mt-1 text-[#A19B95]">
@@ -64,12 +91,47 @@ export default function ProjectsPage() {
               </p>
             </div>
             <Link href="/project/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #8B5A2B, #6B3F1F)' }}>
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02] btn-primary">
               <Plus className="w-4 h-4" />
               New Project
             </Link>
           </div>
+
+          {/* Search + Filters */}
+          {!loading && projects.length > 0 && (
+            <div className="flex items-center gap-3 mb-6">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A19B95]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search projects..."
+                  className="input-field pl-10 pr-9"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[#EDE5DC]">
+                    <X className="w-3.5 h-3.5 text-[#A19B95]" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                {['all', 'completed', 'running', 'failed'].map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={clsx(
+                      'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                      statusFilter === s
+                        ? 'bg-[#8B5A2B]/10 text-[#8B5A2B] border border-[#8B5A2B]/20'
+                        : 'hover:bg-[#EDE5DC] text-[#716B65] border border-transparent'
+                    )}>
+                    {s === 'all' ? 'All' : STATUS_META[s]?.label || s}
+                    <span className="ml-1 text-[10px] opacity-60">{statusCounts[s] || 0}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {loading && (
             <div className="flex items-center justify-center py-24">
@@ -81,8 +143,8 @@ export default function ProjectsPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="p-10 rounded-2xl text-center gradient-border"
-              style={{ background: 'rgba(99,102,241,0.02)' }}
+              className="p-10 rounded-2xl text-center"
+              style={{ background: 'rgba(139,90,43,0.03)' }}
             >
               <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl"
                    style={{ background: 'rgba(139,90,43,0.08)' }}>
@@ -93,18 +155,29 @@ export default function ProjectsPage() {
                 Launch your first mission and AIRA&apos;s planets will build it for you.
               </p>
               <Link href="/project/new"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02]"
-                style={{ background: 'linear-gradient(135deg, #8B5A2B, #6B3F1F)' }}>
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02] btn-primary">
                 <Sparkles className="w-4 h-4" />
                 Start First Project
               </Link>
             </motion.div>
           )}
 
-          {!loading && projects.length > 0 && (
+          {!loading && projects.length > 0 && filteredProjects.length === 0 && (
+            <div className="text-center py-16">
+              <Search className="w-10 h-10 mx-auto mb-3 text-[#D4C8BC]" />
+              <p className="text-sm font-medium text-[#716B65]">No projects match &ldquo;{searchQuery}&rdquo;</p>
+              <button onClick={() => { setSearchQuery(''); setStatusFilter('all') }}
+                className="text-sm text-primary mt-2 hover:underline">
+                Clear filters
+              </button>
+            </div>
+          )}
+
+          {!loading && filteredProjects.length > 0 && (
             <div className="space-y-1.5">
-              {projects.map((project, i) => {
+              {filteredProjects.map((project, i) => {
                 const meta = STATUS_META[project.status] || STATUS_META.pending
+                const StatusIcon = meta.icon
                 return (
                   <motion.div
                     key={project.id}
@@ -131,14 +204,15 @@ export default function ProjectsPage() {
                       </div>
                     </button>
 
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
                           style={{ background: `${meta.color}10`, color: meta.color }}>
+                      <StatusIcon className={clsx('w-2.5 h-2.5', project.status === 'running' && 'animate-spin')} />
                       {meta.label}
                     </span>
 
                     <button
                       onClick={() => router.push(`/project/${project.id}`)}
-                      className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors flex-shrink-0 text-[#A19B95]"
+                      className="p-1.5 rounded-lg hover:bg-[#EDE5DC] transition-colors flex-shrink-0 text-[#A19B95]"
                       title="Open project"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />

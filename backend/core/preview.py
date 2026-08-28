@@ -36,9 +36,18 @@ def _free_port(lo=3000, hi=3999):
     return 0
 
 def _url_ready(url, timeout=5.0):
+    """Check if a server is accepting TCP connections on the given URL.
+    Uses raw socket connect instead of HTTP — works even if the app
+    returns 4xx/5xx (e.g. generated code errors)."""
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
-            return resp.status < 500
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            s.connect((host, port))
+            return True
     except Exception:
         return False
 

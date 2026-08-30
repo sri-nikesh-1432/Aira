@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
 import type { OfficeEvent, AgentId } from '@/types/office'
 
-const AGENT_COLORS: Record<AgentId, string> = {
+const AGENT_COLORS: Record<string, string> = {
   postman: '#059669',
   aira: '#D4A574',
   datta: '#8B5A2B',
@@ -17,7 +17,7 @@ const AGENT_COLORS: Record<AgentId, string> = {
   pluto: '#7C3AED',
 }
 
-const AGENT_SYMBOLS: Record<AgentId, string> = {
+const AGENT_SYMBOLS: Record<string, string> = {
   postman: '📮',
   aira: '☀️',
   datta: '👨‍💼',

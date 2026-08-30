@@ -3,7 +3,7 @@
 import { useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
-import type { AgentId, WorkflowPhase } from '@/types/office'
+import type { AgentId } from '@/types/office'
 
 const FLOW_STEPS = [
   { key: 'project_arriving', label: 'New Project Received', icon: '📮' },
@@ -18,16 +18,11 @@ const FLOW_STEPS = [
 
 const PHASE_ORDER = FLOW_STEPS.map(s => s.key)
 
-const AGENT_COLORS: Record<AgentId, string> = {
-  postman: '#4CAF50', aira: '#FFD700', datta: '#FF9800',
-  mercury: '#90A4AE', mars: '#EF5350', venus: '#FFB74D',
-  earth: '#42A5F5', neptune: '#5C6BC0', pluto: '#AB47BC',
-}
-
-const AGENT_SYMBOLS: Record<AgentId, string> = {
+const AGENT_SYMBOLS: Record<AgentId | string, string> = {
   postman: '📮', aira: '☀️', datta: '💼',
   mercury: '☿', mars: '♂', venus: '♀',
-  earth: '🌍', neptune: '♆', pluto: '🪐',
+  earth: '🌍', jupiter: '♃', saturn: '♄',
+  neptune: '♆', uranus: '♅', pluto: '🪐',
 }
 
 export function LeftPanel() {
@@ -47,47 +42,38 @@ export function LeftPanel() {
   const recentEvents = events.slice(-30)
 
   return (
-    <div className="w-56 flex-shrink-0 flex flex-col bg-[#0D1117] border-r border-[#1A2332] overflow-hidden">
+    <div className="w-52 flex-shrink-0 flex flex-col bg-[#0D1117] border-r border-[#1A2332] overflow-hidden">
       {/* PROJECT FLOW */}
-      <div className="px-3 py-2.5 border-b border-[#1A2332]">
-        <p className="text-[9px] font-bold uppercase tracking-wider text-[#556677] mb-2">
-          PROJECT FLOW
-        </p>
+      <div className="px-3 py-2 border-b border-[#1A2332]">
+        <p className="text-[8px] font-bold uppercase tracking-wider text-[#445566] mb-1.5">PROJECT FLOW</p>
         <div className="space-y-0">
           {FLOW_STEPS.map((step, i) => {
             const isPast = currentIndex >= 0 && i < currentIndex
             const isCurrent = step.key === phase
-            const isFuture = currentIndex >= 0 ? i > currentIndex : true
-
             return (
-              <div key={step.key} className="flex items-center gap-2 py-1">
-                {/* Number */}
+              <div key={step.key} className="flex items-center gap-1.5 py-0.5">
                 <div
-                  className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-[7px] font-bold"
+                  className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 text-[6px] font-bold"
                   style={{
                     background: isCurrent ? '#4FC3F7' : isPast ? '#4CAF50' : '#1A2332',
-                    color: isCurrent || isPast ? '#0D1117' : '#445566',
+                    color: isCurrent || isPast ? '#0D1117' : '#334455',
                   }}
                 >
                   {isPast ? '✓' : i + 1}
                 </div>
-                {/* Label */}
                 <span
-                  className="text-[9px] flex-1"
+                  className="text-[8px] flex-1"
                   style={{
-                    color: isCurrent ? '#4FC3F7' : isPast ? '#4CAF50' : '#445566',
+                    color: isCurrent ? '#4FC3F7' : isPast ? '#4CAF50' : '#334455',
                     fontWeight: isCurrent ? 700 : 400,
                   }}
                 >
                   {step.label}
                 </span>
-                {/* Time */}
-                {isPast || isCurrent ? (
-                  <span className="text-[7px] text-[#556677]">
+                {(isPast || isCurrent) && (
+                  <span className="text-[6px] text-[#445566] font-mono">
                     {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                ) : (
-                  <span className="text-[7px] text-[#334455]">---:--</span>
                 )}
               </div>
             )
@@ -97,66 +83,55 @@ export function LeftPanel() {
 
       {/* EVENT FEED */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2332]">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-[#556677]">
-            EVENT FEED
-          </p>
-          <span className="text-[8px] text-[#334455]">{events.length}</span>
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#1A2332]">
+          <p className="text-[8px] font-bold uppercase tracking-wider text-[#445566]">EVENT FEED</p>
+          <span className="text-[7px] text-[#334455]">All</span>
         </div>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-1.5 space-y-1.5">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-1 space-y-1">
           <AnimatePresence initial={false}>
             {recentEvents.map((event) => {
-              const time = new Date(event.timestamp).toLocaleTimeString('en-US', {
-                hour: '2-digit', minute: '2-digit',
-              })
-              const color = AGENT_COLORS[event.agent] || '#888'
+              const time = new Date(event.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
               const symbol = AGENT_SYMBOLS[event.agent] || '⚡'
-
               return (
                 <motion.div
                   key={event.id}
-                  initial={{ opacity: 0, x: -8 }}
+                  initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-start gap-2"
+                  className="flex items-start gap-1.5"
                 >
-                  <span className="text-[7px] text-[#445566] w-8 flex-shrink-0 pt-0.5 font-mono">
-                    {time}
-                  </span>
-                  <span className="text-[9px] flex-shrink-0">{symbol}</span>
-                  <p className="text-[9px] text-[#AABBCC] leading-relaxed flex-1">
-                    {event.message}
-                  </p>
+                  <span className="text-[6px] text-[#445566] w-7 flex-shrink-0 pt-px font-mono">{time}</span>
+                  <span className="text-[8px] flex-shrink-0">{symbol}</span>
+                  <p className="text-[8px] text-[#8899AA] leading-relaxed flex-1">{event.message}</p>
                 </motion.div>
               )
             })}
           </AnimatePresence>
           {events.length === 0 && (
-            <div className="text-center py-6">
-              <p className="text-[9px] text-[#334455]">No events yet</p>
+            <div className="text-center py-4">
+              <p className="text-[8px] text-[#334455]">No events yet</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* POSTMAN CARD */}
-      <div className="px-3 py-2.5 border-t border-[#1A2332]">
+      {/* POSTMAN */}
+      <div className="px-2 py-2 border-t border-[#1A2332]">
         <div
-          className="p-2.5 rounded-lg border"
+          className="p-2 rounded-lg border"
           style={{
-            background: mailboxStatus === 'new_project' ? '#1B3A1B' : '#1A1A1A',
-            borderColor: mailboxStatus === 'new_project' ? '#2E7D32' : '#333',
+            background: mailboxStatus === 'new_project' ? '#0D2818' : '#111820',
+            borderColor: mailboxStatus === 'new_project' ? '#1B5E20' : '#1A2332',
           }}
         >
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-[#1B5E20]">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+              style={{ background: '#1B5E2020', border: '1px solid #2E7D3240' }}>
               📮
             </div>
             <div>
-              <p className="text-[10px] font-bold text-[#4CAF50]">POSTMAN</p>
-              <p className="text-[8px] text-[#888]">
-                {mailboxStatus === 'new_project'
-                  ? 'New Project Delivered!'
-                  : 'Standing by'}
+              <p className="text-[9px] font-bold text-[#4CAF50]">POSTMAN</p>
+              <p className="text-[7px] text-[#666]">
+                {mailboxStatus === 'new_project' ? 'New Project Delivered!' : 'Standing by'}
               </p>
             </div>
           </div>

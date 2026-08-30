@@ -10,7 +10,10 @@ export type AgentId =
   | 'mars'
   | 'venus'
   | 'earth'
+  | 'jupiter'
+  | 'saturn'
   | 'neptune'
+  | 'uranus'
   | 'pluto'
 
 export type AgentOfficeState =
@@ -34,7 +37,10 @@ export type OfficeRoom =
   | 'mars_cabin'
   | 'venus_cabin'
   | 'earth_cabin'
+  | 'jupiter_cabin'
+  | 'saturn_cabin'
   | 'neptune_cabin'
+  | 'uranus_cabin'
   | 'pluto_cabin'
   | 'dormitory'      // Where idle agents sleep
   | 'hallway'        // Walking between rooms

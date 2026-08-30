@@ -5,7 +5,7 @@ import { X, MapPin, Clock, FileText, MessageCircle, Activity, Zap, CheckCircle }
 import { useOfficeStore } from '@/store/officeStore'
 import type { AgentId, AgentLocation } from '@/types/office'
 
-const AGENT_META: Record<AgentId, {
+const AGENT_META: Record<string, {
   name: string
   symbol: string
   color: string

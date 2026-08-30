@@ -7,7 +7,7 @@ import { AgentSprite } from './AgentSprite'
 import type { AgentId, OfficeRoom, OfficeEvent, AgentOfficeState, AgentLocation } from '@/types/office'
 
 // ─── Agent metadata ──────────────────────────────────────────────────────────
-const AGENT_META: Record<AgentId, {
+const AGENT_META: Record<string, {
   name: string
   symbol: string
   color: string

@@ -1,318 +1,311 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
 import type { AgentId, AgentLocation, AgentOfficeState } from '@/types/office'
 
-// ─── Agent metadata ──────────────────────────────────────────────────────────
-const AGENT_META: Record<AgentId, {
-  name: string
-  symbol: string
-  color: string
-  role: string
-  hat: string
-  deskColor: string
-  screenContent: string
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGENT DEFINITIONS — All 10 planets + AIRA + Datta + Postman
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const AGENT_DEFS: Record<string, {
+  name: string; symbol: string; color: string; role: string
+  hat: string; shirt: string; deskTool: string; screenIcon: string
+  cabinLabel: string
 }> = {
-  postman:  { name: 'Postman',  symbol: '📮', color: '#4CAF50', role: 'Delivery',       hat: '#388E3C', deskColor: '#5D4037', screenContent: '' },
-  aira:     { name: 'AIRA',     symbol: '☀️', color: '#FFD700', role: 'CEO',            hat: '#F9A825', deskColor: '#3E2723', screenContent: '📊' },
-  datta:    { name: 'Datta',    symbol: '💼', color: '#FF9800', role: 'Project Manager', hat: '#E65100', deskColor: '#4E342E', screenContent: '📋' },
-  mercury:  { name: 'Mercury',  symbol: '☿',  color: '#90A4AE', role: 'Research',       hat: '#607D8B', deskColor: '#455A64', screenContent: '🔍' },
-  mars:     { name: 'Mars',     symbol: '♂',  color: '#EF5350', role: 'Architect',      hat: '#C62828', deskColor: '#37474F', screenContent: '🏗️' },
-  venus:    { name: 'Venus',    symbol: '♀',  color: '#FFB74D', role: 'UI/UX Designer', hat: '#EF6C00', deskColor: '#4E342E', screenContent: '🎨' },
-  earth:    { name: 'Earth',    symbol: '🌍', color: '#42A5F5', role: 'Developer',      hat: '#1565C0', deskColor: '#263238', screenContent: '💻' },
-  neptune:  { name: 'Neptune',  symbol: '♆',  color: '#5C6BC0', role: 'QA Engineer',    hat: '#283593', deskColor: '#37474F', screenContent: '🧪' },
-  pluto:    { name: 'Pluto',    symbol: '🪐', color: '#AB47BC', role: 'DevOps Engineer', hat: '#6A1B9A', deskColor: '#212121', screenContent: '🚀' },
+  postman:  { name: 'Postman', symbol: '📮', color: '#4CAF50', role: 'Delivery',       hat: '#2E7D32', shirt: '#66BB6A', deskTool: '',       screenIcon: '',   cabinLabel: '' },
+  aira:     { name: 'AIRA',    symbol: '☀️', color: '#FFD700', role: 'CEO',            hat: '#F9A825', shirt: '#FFD54F', deskTool: '📊',    screenIcon: '☀️', cabinLabel: 'AIRA' },
+  datta:    { name: 'Datta',   symbol: '💼', color: '#FF9800', role: 'Project Manager', hat: '#E65100', shirt: '#FFB74D', deskTool: '📋',    screenIcon: '💼', cabinLabel: 'DATTA' },
+  mercury:  { name: 'Mercury', symbol: '☿',  color: '#90A4AE', role: 'Research',       hat: '#546E7A', shirt: '#78909C', deskTool: '📚',    screenIcon: '🔍', cabinLabel: 'MERCURY' },
+  mars:     { name: 'Mars',    symbol: '♂',  color: '#EF5350', role: 'Architect',      hat: '#C62828', shirt: '#E57373', deskTool: '📐',    screenIcon: '🏗️', cabinLabel: 'MARS' },
+  venus:    { name: 'Venus',   symbol: '♀',  color: '#FFB74D', role: 'UI/UX Designer', hat: '#EF6C00', shirt: '#FFCC80', deskTool: '🎨',    screenIcon: '🖌️', cabinLabel: 'VENUS' },
+  earth:    { name: 'Earth',   symbol: '🌍', color: '#42A5F5', role: 'Developer',      hat: '#1565C0', shirt: '#64B5F6', deskTool: '⌨️',    screenIcon: '💻', cabinLabel: 'EARTH' },
+  neptune:  { name: 'Neptune', symbol: '♆',  color: '#5C6BC0', role: 'QA Engineer',    hat: '#283593', shirt: '#7986CB', deskTool: '🧪',    screenIcon: '🛡️', cabinLabel: 'NEPTUNE' },
+  pluto:    { name: 'Pluto',   symbol: '🪐', color: '#AB47BC', role: 'DevOps',         hat: '#6A1B9A', shirt: '#BA68C8', deskTool: '🚀',    screenIcon: '🐳', cabinLabel: 'PLUTO' },
+  jupiter:  { name: 'Jupiter', symbol: '♃',  color: '#C8A951', role: 'Business',       hat: '#8D6E00', shirt: '#D4A574', deskTool: '📈',    screenIcon: '📊', cabinLabel: 'JUPITER' },
+  saturn:   { name: 'Saturn',  symbol: '♄',  color: '#A89070', role: 'Documentation',  hat: '#5D4037', shirt: '#A1887F', deskTool: '📝',    screenIcon: '📄', cabinLabel: 'SATURN' },
+  uranus:   { name: 'Uranus',  symbol: '♅',  color: '#7EC8C8', role: 'Meta-Evolution', hat: '#00695C', shirt: '#80CBC4', deskTool: '⚡',    screenIcon: '🔄', cabinLabel: 'URANUS' },
 }
 
-const STATE_WORK_LABELS: Record<AgentOfficeState, string> = {
-  idle: '',
-  walking: 'Moving...',
-  meeting: 'In Meeting',
-  at_desk: 'Ready',
-  working: 'Working...',
-  reporting: 'Reporting...',
-  completed: 'Done',
-  sleeping: 'Sleeping',
-  error: 'Error!',
-  arriving: 'Arriving...',
+const PLANET_AGENTS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'jupiter', 'saturn', 'neptune', 'uranus', 'pluto']
+
+const STATE_VISUAL: Record<AgentOfficeState, { label: string; dotColor: string; icon: string }> = {
+  idle:      { label: 'Idle',      dotColor: '#555',    icon: '⏸' },
+  walking:   { label: 'Moving',    dotColor: '#2196F3', icon: '🚶' },
+  meeting:   { label: 'Meeting',   dotColor: '#FF9800', icon: '🏢' },
+  at_desk:   { label: 'Ready',     dotColor: '#666',    icon: '🪑' },
+  working:   { label: 'Working',   dotColor: '#4CAF50', icon: '⚡' },
+  reporting: { label: 'Reporting', dotColor: '#FF9800', icon: '📋' },
+  completed: { label: 'Done',      dotColor: '#4CAF50', icon: '✅' },
+  sleeping:  { label: 'Sleeping',  dotColor: '#555',    icon: '💤' },
+  error:     { label: 'Error',     dotColor: '#F44336', icon: '❌' },
+  arriving:  { label: 'Arriving',  dotColor: '#4CAF50', icon: '📮' },
 }
 
-// ─── Room positions on the 800x500 canvas ────────────────────────────────────
-interface RoomRect {
-  x: number; y: number; w: number; h: number
-  label: string
-  bgColor: string
-  borderColor: string
-  emoji: string
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOM LAYOUT — One connected office floor (SVG coordinate space: 800 x 400)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface RoomDef {
+  id: string; x: number; y: number; w: number; h: number
+  label: string; emoji: string; bg: string; border: string
 }
 
-const ROOMS: Record<string, RoomRect> = {
-  reception:     { x: 10,   y: 10,   w: 100, h: 100, label: 'MAILBOX',          bgColor: '#1B2838', borderColor: '#2A4060', emoji: '📮' },
-  aira_office:   { x: 120,  y: 10,   w: 130, h: 100, label: 'AIRA',             bgColor: '#1E2A1E', borderColor: '#3A5A3A', emoji: '☀️' },
-  datta_office:  { x: 260,  y: 10,   w: 130, h: 100, label: 'DATTA',            bgColor: '#2A1E10', borderColor: '#5A4020', emoji: '💼' },
-  meeting_room:  { x: 400,  y: 10,   w: 200, h: 100, label: 'MEETING ROOM',     bgColor: '#1A1A2E', borderColor: '#3A3A5E', emoji: '🏢' },
-  mercury_cabin: { x: 10,   y: 120,  w: 118, h: 90,  label: 'MERCURY',          bgColor: '#1C2333', borderColor: '#334466', emoji: '☿' },
-  mars_cabin:    { x: 138,  y: 120,  w: 118, h: 90,  label: 'MARS',             bgColor: '#2E1A1A', borderColor: '#5A2A2A', emoji: '♂' },
-  venus_cabin:   { x: 266,  y: 120,  w: 118, h: 90,  label: 'VENUS',            bgColor: '#2E2A1A', borderColor: '#5A5020', emoji: '♀' },
-  earth_cabin:   { x: 394,  y: 120,  w: 118, h: 90,  label: 'EARTH',            bgColor: '#1A1A2E', borderColor: '#2A3A5E', emoji: '🌍' },
-  neptune_cabin: { x: 522,  y: 120,  w: 88,  h: 90,  label: 'NEPTUNE',          bgColor: '#1A1E33', borderColor: '#2A3355', emoji: '♆' },
-  pluto_cabin:   { x: 620,  y: 120,  w: 88,  h: 90,  label: 'PLUTO',            bgColor: '#231A33', borderColor: '#3A2A55', emoji: '🪐' },
-  dormitory:     { x: 10,   y: 220,  w: 340, h: 120, label: 'DORMITORY',        bgColor: '#1A1A1A', borderColor: '#333333', emoji: '🛏️' },
-  integration:   { x: 360,  y: 220,  w: 160, h: 120, label: 'INTEGRATION',      bgColor: '#1A2E1A', borderColor: '#2A5A2A', emoji: '🔗' },
-  live_preview:  { x: 530,  y: 220,  w: 178, h: 120, label: 'LIVE PREVIEW',     bgColor: '#0D1B2A', borderColor: '#1B3A5C', emoji: '🌐' },
+const ROOMS: RoomDef[] = [
+  // Row 0: Top floor — Executive offices + Meeting room
+  { id: 'reception',     x: 8,    y: 8,   w: 90,  h: 95,  label: 'MAILBOX',      emoji: '📮', bg: '#0E1A28', border: '#1A3050' },
+  { id: 'aira_office',   x: 105,  y: 8,   w: 120, h: 95,  label: 'AIRA',         emoji: '☀️', bg: '#1A1A10', border: '#3A3A20' },
+  { id: 'datta_office',  x: 232,  y: 8,   w: 120, h: 95,  label: 'DATTA',        emoji: '💼', bg: '#1A1510', border: '#3A3020' },
+  { id: 'meeting_room',  x: 359,  y: 8,   w: 180, h: 95,  label: 'MEETING ROOM', emoji: '🏢', bg: '#10101A', border: '#252540' },
+  { id: 'integration',   x: 546,  y: 8,   w: 120, h: 95,  label: 'INTEGRATION',  emoji: '🔗', bg: '#0A1A0A', border: '#1A3A1A' },
+  { id: 'live_preview',  x: 673,  y: 8,   w: 119, h: 95,  label: 'LIVE PREVIEW', emoji: '🌐', bg: '#080D18', border: '#152540' },
+
+  // Row 1: Planet employee cabins
+  { id: 'mercury_cabin', x: 8,    y: 110, w: 78,  h: 80,  label: 'MERCURY',   emoji: '☿',  bg: '#12161C', border: '#253040' },
+  { id: 'mars_cabin',    x: 93,   y: 110, w: 78,  h: 80,  label: 'MARS',      emoji: '♂',  bg: '#1C1212', border: '#402525' },
+  { id: 'venus_cabin',   x: 178,  y: 110, w: 78,  h: 80,  label: 'VENUS',     emoji: '♀',  bg: '#1C1A10', border: '#403A20' },
+  { id: 'earth_cabin',   x: 263,  y: 110, w: 78,  h: 80,  label: 'EARTH',     emoji: '🌍', bg: '#10141C', border: '#203040' },
+  { id: 'jupiter_cabin', x: 348,  y: 110, w: 78,  h: 80,  label: 'JUPITER',   emoji: '♃',  bg: '#1A1810', border: '#3A3520' },
+  { id: 'saturn_cabin',  x: 433,  y: 110, w: 78,  h: 80,  label: 'SATURN',    emoji: '♄',  bg: '#161410', border: '#302820' },
+  { id: 'neptune_cabin', x: 518,  y: 110, w: 78,  h: 80,  label: 'NEPTUNE',   emoji: '♆',  bg: '#10121A', border: '#202A40' },
+  { id: 'uranus_cabin',  x: 603,  y: 110, w: 78,  h: 80,  label: 'URANUS',    emoji: '♅',  bg: '#101A18', border: '#1A3A35' },
+  { id: 'pluto_cabin',   x: 688,  y: 110, w: 104, h: 80,  label: 'PLUTO',     emoji: '🪐', bg: '#14101A', border: '#2A1A40' },
+
+  // Row 2: Bottom floor — Dormitory
+  { id: 'dormitory',     x: 8,    y: 197, w: 784, h: 80,  label: 'DORMITORY', emoji: '🛏️', bg: '#0C0C10', border: '#1A1A25' },
+]
+
+// Bed positions within dormitory (relative to dorm x,y)
+const BED_POSITIONS = [
+  { bx: 10,  by: 18, agent: 'mercury' },
+  { bx: 75,  by: 18, agent: 'mars' },
+  { bx: 140, by: 18, agent: 'venus' },
+  { bx: 205, by: 18, agent: 'earth' },
+  { bx: 270, by: 18, agent: 'jupiter' },
+  { bx: 335, by: 18, agent: 'saturn' },
+  { bx: 400, by: 18, agent: 'neptune' },
+  { bx: 465, by: 18, agent: 'uranus' },
+  { bx: 530, by: 18, agent: 'pluto' },
+]
+
+// Map agent → default room
+const AGENT_DEFAULT_ROOM: Record<string, string> = {
+  postman: 'reception', aira: 'aira_office', datta: 'datta_office',
+  mercury: 'mercury_cabin', mars: 'mars_cabin', venus: 'venus_cabin',
+  earth: 'earth_cabin', jupiter: 'jupiter_cabin', saturn: 'saturn_cabin',
+  neptune: 'neptune_cabin', uranus: 'uranus_cabin', pluto: 'pluto_cabin',
 }
 
-// ─── Agent default positions within rooms ─────────────────────────────────────
-const AGENT_POSITIONS: Record<string, Record<string, { x: number; y: number }>> = {
-  aira_office:   { aira: { x: 65, y: 55 } },
-  datta_office:  { datta: { x: 65, y: 55 } },
-  mercury_cabin: { mercury: { x: 55, y: 50 } },
-  mars_cabin:    { mars: { x: 55, y: 50 } },
-  venus_cabin:   { venus: { x: 55, y: 50 } },
-  earth_cabin:   { earth: { x: 55, y: 50 } },
-  neptune_cabin: { neptune: { x: 40, y: 50 } },
-  pluto_cabin:   { pluto: { x: 40, y: 50 } },
-  dormitory:     {
-    mercury: { x: 40, y: 50 }, mars: { x: 90, y: 50 },
-    venus: { x: 140, y: 50 }, earth: { x: 190, y: 50 },
-    neptune: { x: 240, y: 50 }, pluto: { x: 290, y: 50 },
-  },
-  meeting_room:  {
-    mercury: { x: 50, y: 50 }, mars: { x: 90, y: 50 },
-    venus: { x: 130, y: 50 }, earth: { x: 50, y: 75 },
-    neptune: { x: 90, y: 75 }, pluto: { x: 130, y: 75 },
-  },
+// Map store room names → canvas room IDs
+function normalizeRoom(room: string): string {
+  if (room === 'dormitory') return 'dormitory'
+  if (room === 'reception') return 'reception'
+  if (room === 'hallway') return 'hallway'
+  if (room === 'meeting_room') return 'meeting_room'
+  if (room === 'aira_cabin') return 'aira_office'
+  if (room === 'datta_cabin') return 'datta_office'
+  return room // mercury_cabin, mars_cabin, etc. — already match
 }
 
-// ─── Pixel-art character sprite ───────────────────────────────────────────────
-function PixelCharacter({
-  agent,
-  state,
-  x,
-  y,
-  size = 20,
+// ═══════════════════════════════════════════════════════════════════════════════
+// SVG FURNITURE HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function DeskSVG({ x, y, w = 22, h = 10, color = '#3E2723' }: { x: number; y: number; w?: number; h?: number; color?: string }) {
+  return <rect x={x} y={y} width={w} height={h} rx={1.5} fill={color} />
+}
+
+function MonitorSVG({ x, y, on = false, color = '#4FC3F7' }: { x: number; y: number; on?: boolean; color?: string }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={10} height={7} rx={1} fill="#111" />
+      <rect x={x + 0.8} y={y + 0.8} width={8.4} height={5.4} rx={0.5} fill={on ? color : '#0A0A0A'} opacity={on ? 0.85 : 0.2} />
+      <rect x={x + 3} y={y + 7} width={4} height={1.5} fill="#222" />
+    </g>
+  )
+}
+
+function ChairSVG({ x, y }: { x: number; y: number }) {
+  return <rect x={x} y={y} width={7} height={7} rx={2} fill="#2A2A35" opacity={0.6} />
+}
+
+function PlantSVG({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <rect x={x} y={y + 3} width={5} height={4} rx={1} fill="#3E2723" />
+      <circle cx={x + 2.5} cy={y + 1} r={3.5} fill="#2E7D32" opacity={0.7} />
+    </g>
+  )
+}
+
+function BedSVG({ x, y, occupied = false }: { x: number; y: number; occupied?: boolean }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={52} height={18} rx={2} fill="#1A1A28" />
+      <rect x={x} y={y} width={52} height={5} rx={2} fill="#252538" />
+      {occupied && <circle cx={x + 26} cy={y + 10} r={3} fill="#FFCC80" opacity={0.5} />}
+      {occupied && <text x={x + 26} y={y + 16} textAnchor="middle" fontSize="5" fill="#666">💤</text>}
+    </g>
+  )
+}
+
+function MeetingTableSVG({ x, y }: { x: number; y: number }) {
+  return <rect x={x} y={y} width={70} height={24} rx={3} fill="#3E2723" opacity={0.85} />
+}
+
+function WhiteboardSVG({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={26} height={16} rx={1} fill="#CFD8DC" opacity={0.2} />
+      <line x1={x + 3} y1={y + 4} x2={x + 23} y2={y + 4} stroke="#90A4AE" strokeWidth={0.4} opacity={0.3} />
+      <line x1={x + 3} y1={y + 8} x2={x + 18} y2={y + 8} stroke="#90A4AE" strokeWidth={0.4} opacity={0.3} />
+    </g>
+  )
+}
+
+function MailboxSVG({ x, y, hasNew = false }: { x: number; y: number; hasNew?: boolean }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={14} height={20} rx={2} fill={hasNew ? '#D32F2F' : '#5D4037'} />
+      <rect x={x + 2} y={y + 2} width={10} height={7} rx={1} fill={hasNew ? '#FFCDD2' : '#795548'} />
+      {hasNew && <text x={x + 7} y={y + 7} textAnchor="middle" fontSize="5" fill="#C62828">✉</text>}
+    </g>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PIXEL CHARACTER SPRITE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function CharacterSprite({
+  agent, state, x, y, size = 14,
 }: {
-  agent: AgentId
-  state: AgentOfficeState
-  x: number
-  y: number
-  size?: number
+  agent: AgentId; state: AgentOfficeState; x: number; y: number; size?: number
 }) {
-  const meta = AGENT_META[agent]
+  const def = AGENT_DEFS[agent]
   const isWorking = state === 'working'
   const isSleeping = state === 'sleeping' || state === 'idle'
   const isMeeting = state === 'meeting'
   const isWalking = state === 'walking' || state === 'reporting' || state === 'arriving'
-  const isCompleted = state === 'completed'
-
-  const hairColor = meta.color
-  const skinColor = '#FFCC80'
-  const shirtColor = meta.color
+  const isError = state === 'error'
 
   return (
     <motion.g
-      initial={{ opacity: 0, scale: 0.5 }}
+      initial={{ opacity: 0 }}
       animate={{
-        opacity: isSleeping ? 0.5 : 1,
-        scale: isSleeping ? 0.85 : 1,
-        x: isWalking ? [x - 2, x + 2, x - 2] : x,
-        y: isWalking ? [y - 1, y + 1, y - 1] : y,
+        opacity: isSleeping ? 0.45 : 1,
+        y: isWalking ? [y - 1.5, y + 1.5, y - 1.5] : y,
       }}
       transition={{
-        duration: isWalking ? 0.8 : 0.3,
-        repeat: isWalking ? Infinity : 0,
-        ease: 'easeInOut',
+        y: isWalking ? { duration: 0.7, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.3 },
+        opacity: { duration: 0.3 },
       }}
     >
-      {/* Body */}
-      <rect
-        x={x - size / 2}
-        y={y - size / 2 + 4}
-        width={size}
-        height={size - 6}
-        rx={2}
-        fill={shirtColor}
-        opacity={0.9}
-      />
+      {/* Body / Shirt */}
+      <rect x={x - size / 2} y={y - size / 2 + 3} width={size} height={size - 5} rx={2} fill={def.shirt} opacity={0.9} />
       {/* Head */}
-      <circle
-        cx={x}
-        cy={y - size / 2 + 2}
-        r={size / 3}
-        fill={skinColor}
-      />
-      {/* Hair/Hat */}
-      <rect
-        x={x - size / 3}
-        y={y - size / 2 - 2}
-        width={size / 1.5}
-        height={size / 4}
-        rx={2}
-        fill={meta.hat}
-      />
+      <circle cx={x} cy={y - size / 2 + 1} r={size / 3} fill="#FFCC80" />
+      {/* Hat */}
+      <rect x={x - size / 3} y={y - size / 2 - 2} width={size / 1.5} height={size / 4} rx={1.5} fill={def.hat} />
       {/* Eyes */}
       {!isSleeping && (
         <>
-          <circle cx={x - 2} cy={y - size / 2 + 2} r={1} fill="#333" />
-          <circle cx={x + 2} cy={y - size / 2 + 2} r={1} fill="#333" />
+          <circle cx={x - 1.5} cy={y - size / 2 + 1} r={0.8} fill="#333" />
+          <circle cx={x + 1.5} cy={y - size / 2 + 1} r={0.8} fill="#333" />
         </>
       )}
-      {/* Sleeping Z's */}
+      {/* Sleeping eyes (closed) */}
       {isSleeping && (
-        <text
-          x={x + size / 2 + 2}
-          y={y - size / 2 - 2}
-          fontSize="7"
-          fill="#888"
-          fontFamily="monospace"
-        >
-          💤
-        </text>
+        <line x1={x - 2} y1={y - size / 2 + 1} x2={x - 0.5} y2={y - size / 2 + 1} stroke="#333" strokeWidth={0.6} />
+      )}
+      {/* Sleeping Z */}
+      {isSleeping && (
+        <text x={x + size / 2 + 1} y={y - size / 2 - 1} fontSize="5" fill="#666" fontFamily="monospace">z</text>
       )}
       {/* Working glow */}
       {isWorking && (
-        <circle
-          cx={x}
-          cy={y}
-          r={size / 1.5}
-          fill="none"
-          stroke={meta.color}
-          strokeWidth={0.5}
-          opacity={0.4}
-        >
-          <animate attributeName="r" values={`${size / 1.5};${size / 1.2};${size / 1.5}`} dur="2s" repeatCount="indefinite" />
-          <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
+        <circle cx={x} cy={y} r={size / 1.3} fill="none" stroke={def.color} strokeWidth={0.4} opacity={0.35}>
+          <animate attributeName="r" values={`${size / 1.3};${size};${size / 1.3}`} dur="2s" repeatCount="indefinite" />
+        </circle>
+      )}
+      {/* Error indicator */}
+      {isError && (
+        <circle cx={x + size / 2} cy={y - size / 2} r={3} fill="#F44336">
+          <animate attributeName="r" values="3;4;3" dur="1s" repeatCount="indefinite" />
         </circle>
       )}
       {/* Status dot */}
       <circle
-        cx={x + size / 2 - 2}
-        cy={y - size / 2}
-        r={2.5}
-        fill={
-          isWorking ? '#4CAF50'
-          : isSleeping ? '#666'
-          : isMeeting ? '#FF9800'
-          : isWalking ? '#2196F3'
-          : isCompleted ? '#4CAF50'
-          : '#F44336'
-        }
-        stroke="#0D1B2A"
-        strokeWidth={0.5}
+        cx={x + size / 2 - 1} cy={y - size / 2 + 0.5}
+        r={2} fill={STATE_VISUAL[state]?.dotColor || '#555'}
+        stroke="#0D1117" strokeWidth={0.4}
       />
-      {/* Name label */}
-      <text
-        x={x}
-        y={y + size / 2 + 6}
-        textAnchor="middle"
-        fontSize="6"
-        fill={meta.color}
-        fontFamily="Inter, sans-serif"
-        fontWeight="bold"
-      >
-        {meta.name}
+      {/* Name */}
+      <text x={x} y={y + size / 2 + 5} textAnchor="middle" fontSize="5" fill={def.color}
+        fontFamily="Inter, sans-serif" fontWeight="bold">
+        {def.name}
       </text>
     </motion.g>
   )
 }
 
-// ─── Furniture drawing helpers ────────────────────────────────────────────────
-function Desk({ x, y, color = '#3E2723' }: { x: number; y: number; color?: string }) {
-  return (
-    <g>
-      <rect x={x} y={y} width={24} height={12} rx={1} fill={color} />
-      <rect x={x + 2} y={y + 1} width={20} height={3} rx={0.5} fill="#555" />
-    </g>
-  )
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGENT POSITIONING — Where each agent sits in each room
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getAgentCanvasPosition(agentId: AgentId, room: string, roomIndex: number, totalInRoom: number): { x: number; y: number } {
+  const roomDef = ROOMS.find(r => r.id === room)
+  if (!roomDef) return { x: 400, y: 200 }
+
+  const cx = roomDef.x + roomDef.w / 2
+  const cy = roomDef.y + roomDef.h / 2
+
+  // Special positions for specific rooms
+  if (room === 'aira_office') return { x: cx, y: cy + 5 }
+  if (room === 'datta_office') return { x: cx, y: cy + 5 }
+  if (room === 'meeting_room') {
+    // Arrange around meeting table
+    const col = roomIndex % 5
+    const row = Math.floor(roomIndex / 5)
+    return { x: roomDef.x + 30 + col * 28, y: roomDef.y + 25 + row * 30 }
+  }
+  if (room === 'reception') return { x: cx, y: cy + 8 }
+  if (room === 'integration') return { x: cx, y: cy + 5 }
+  if (room === 'live_preview') return { x: cx, y: cy + 5 }
+  if (room === 'dormitory') {
+    // Find bed position
+    const bed = BED_POSITIONS.find(b => b.agent === agentId)
+    if (bed) return { x: roomDef.x + bed.bx + 26, y: roomDef.y + bed.by + 10 }
+    return { x: cx + (roomIndex - 4) * 30, y: cy }
+  }
+
+  // Default: cabin center
+  return { x: cx, y: cy + 5 }
 }
 
-function Chair({ x, y }: { x: number; y: number }) {
-  return (
-    <rect x={x} y={y} width={8} height={8} rx={2} fill="#37474F" opacity={0.7} />
-  )
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN OFFICE CANVAS
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function Computer({ x, y, on = false, color = '#4FC3F7' }: { x: number; y: number; on?: boolean; color?: string }) {
-  return (
-    <g>
-      <rect x={x} y={y} width={12} height={9} rx={1} fill="#222" />
-      <rect x={x + 1} y={y + 1} width={10} height={6} rx={0.5} fill={on ? color : '#111'} opacity={on ? 0.9 : 0.3} />
-      <rect x={x + 4} y={y + 9} width={4} height={2} fill="#333" />
-    </g>
-  )
-}
-
-function Plant({ x, y }: { x: number; y: number }) {
-  return (
-    <g>
-      <rect x={x} y={y + 4} width={6} height={5} rx={1} fill="#5D4037" />
-      <circle cx={x + 3} cy={y + 2} r={4} fill="#2E7D32" opacity={0.8} />
-    </g>
-  )
-}
-
-function Bed({ x, y, occupied = false }: { x: number; y: number; occupied?: boolean }) {
-  return (
-    <g>
-      <rect x={x} y={y} width={28} height={14} rx={2} fill="#1A237E" opacity={0.5} />
-      <rect x={x} y={y} width={28} height={4} rx={2} fill="#283593" opacity={0.6} />
-      {occupied && (
-        <circle cx={x + 14} cy={y + 8} r={3} fill="#FFCC80" opacity={0.6} />
-      )}
-    </g>
-  )
-}
-
-function MeetingTable({ x, y }: { x: number; y: number }) {
-  return (
-    <rect x={x} y={y} width={80} height={30} rx={3} fill="#3E2723" opacity={0.8} />
-  )
-}
-
-function Whiteboard({ x, y }: { x: number; y: number }) {
-  return (
-    <g>
-      <rect x={x} y={y} width={30} height={20} rx={1} fill="#ECEFF1" opacity={0.3} />
-      <line x1={x + 4} y1={y + 5} x2={x + 26} y2={y + 5} stroke="#90A4AE" strokeWidth={0.5} opacity={0.4} />
-      <line x1={x + 4} y1={y + 10} x2={x + 20} y2={y + 10} stroke="#90A4AE" strokeWidth={0.5} opacity={0.4} />
-    </g>
-  )
-}
-
-function Mailbox({ x, y, hasNew = false }: { x: number; y: number; hasNew?: boolean }) {
-  return (
-    <g>
-      <rect x={x} y={y} width={16} height={22} rx={2} fill={hasNew ? '#F44336' : '#5D4037'} />
-      <rect x={x + 2} y={y + 2} width={12} height={8} rx={1} fill={hasNew ? '#FFCDD2' : '#795548'} />
-      {hasNew && (
-        <text x={x + 8} y={y + 8} textAnchor="middle" fontSize="6" fill="#C62828">✉</text>
-      )}
-    </g>
-  )
-}
-
-// ─── Main Office Canvas ───────────────────────────────────────────────────────
-export function OfficeCanvas() {
+export function OfficeCanvas({ onAgentClick }: { onAgentClick?: (agent: AgentId) => void }) {
   const agents = useOfficeStore((s) => s.agents)
   const phase = useOfficeStore((s) => s.phase)
   const mailboxStatus = useOfficeStore((s) => s.mailboxStatus)
 
-  // Map agents to their current room
+  const canvasW = 800
+  const canvasH = 285
+
+  // Group agents by room
   const agentsByRoom: Record<string, AgentLocation[]> = {}
   for (const agent of Object.values(agents)) {
-    const roomKey = agent.room.replace('_cabin', '_cabin').replace('aira_cabin', 'aira_office').replace('datta_cabin', 'datta_office')
-    const normalizedRoom = Object.keys(ROOMS).find(r => r === roomKey) || 'dormitory'
-    if (!agentsByRoom[normalizedRoom]) agentsByRoom[normalizedRoom] = []
-    agentsByRoom[normalizedRoom].push(agent)
+    const normRoom = normalizeRoom(agent.room)
+    if (!agentsByRoom[normRoom]) agentsByRoom[normRoom] = []
+    agentsByRoom[normRoom].push(agent)
   }
 
-  const canvasW = 720
-  const canvasH = 350
-
   return (
-    <div className="relative w-full h-full flex items-center justify-center bg-[#0D1117] overflow-hidden">
+    <div className="relative w-full h-full bg-[#0D1117] overflow-hidden flex items-center justify-center">
       <svg
         viewBox={`0 0 ${canvasW} ${canvasH}`}
         className="w-full h-full"
@@ -320,79 +313,52 @@ export function OfficeCanvas() {
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          {/* Grid pattern */}
-          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <pattern id="officeGrid" width="20" height="20" patternUnits="userSpaceOnUse">
             <rect width="20" height="20" fill="none" />
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1A2332" strokeWidth="0.3" />
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#151E2A" strokeWidth="0.2" />
           </pattern>
-          {/* Room shadow filter */}
-          <filter id="roomShadow" x="-5%" y="-5%" width="110%" height="110%">
-            <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#000" floodOpacity="0.3" />
+          <filter id="roomGlow">
+            <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#4FC3F7" floodOpacity="0.08" />
           </filter>
         </defs>
 
         {/* Background */}
         <rect width={canvasW} height={canvasH} fill="#0D1117" />
-        <rect width={canvasW} height={canvasH} fill="url(#grid)" />
+        <rect width={canvasW} height={canvasH} fill="url(#officeGrid)" />
 
         {/* ── ROOMS ── */}
-        {Object.entries(ROOMS).map(([key, room]) => {
-          const hasAgents = agentsByRoom[key]?.some(a => a.state !== 'sleeping' && a.state !== 'idle')
-          const isMeetingActive = key === 'meeting_room' && agentsByRoom[key]?.some(a => a.state === 'meeting')
-
+        {ROOMS.map(room => {
+          const hasActive = agentsByRoom[room.id]?.some(a =>
+            a.state !== 'sleeping' && a.state !== 'idle'
+          )
           return (
-            <g key={key}>
-              {/* Room background */}
+            <g key={room.id}>
               <rect
-                x={room.x}
-                y={room.y}
-                width={room.w}
-                height={room.h}
-                rx={4}
-                fill={room.bgColor}
-                stroke={hasAgents ? room.borderColor : `${room.borderColor}66`}
-                strokeWidth={hasAgents ? 1.5 : 0.5}
-                filter="url(#roomShadow)"
+                x={room.x} y={room.y} width={room.w} height={room.h}
+                rx={3} fill={room.bg}
+                stroke={hasActive ? room.border : `${room.border}55`}
+                strokeWidth={hasActive ? 1 : 0.4}
               />
-              {/* Room floor pattern */}
+              {/* Room floor texture */}
               <rect
-                x={room.x + 2}
-                y={room.y + 2}
-                width={room.w - 4}
-                height={room.h - 4}
-                rx={2}
-                fill="none"
-                stroke={`${room.borderColor}22`}
-                strokeWidth={0.3}
-                strokeDasharray="4 4"
+                x={room.x + 2} y={room.y + 2} width={room.w - 4} height={room.h - 4}
+                rx={1.5} fill="none" stroke={`${room.border}15`} strokeWidth={0.2} strokeDasharray="3 3"
               />
-              {/* Room label */}
+              {/* Label */}
               <text
-                x={room.x + room.w / 2}
-                y={room.y + 10}
-                textAnchor="middle"
-                fontSize="6"
-                fill={hasAgents ? '#AABBCC' : '#556677'}
-                fontFamily="Inter, sans-serif"
-                fontWeight="bold"
-                letterSpacing="0.5"
+                x={room.x + 4} y={room.y + 9}
+                fontSize="5" fill={hasActive ? '#8899AA' : '#445566'}
+                fontFamily="Inter, sans-serif" fontWeight="bold" letterSpacing="0.3"
               >
                 {room.emoji} {room.label}
               </text>
-              {/* Active glow */}
-              {hasAgents && (
+              {/* Active glow border */}
+              {hasActive && (
                 <rect
-                  x={room.x}
-                  y={room.y}
-                  width={room.w}
-                  height={room.h}
-                  rx={4}
-                  fill="none"
-                  stroke={room.borderColor}
-                  strokeWidth={1}
-                  opacity={0.3}
+                  x={room.x} y={room.y} width={room.w} height={room.h}
+                  rx={3} fill="none" stroke={room.border} strokeWidth={0.8} opacity={0.2}
                 >
-                  <animate attributeName="opacity" values="0.3;0.1;0.3" dur="3s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.2;0.08;0.2" dur="3s" repeatCount="indefinite" />
                 </rect>
               )}
             </g>
@@ -401,125 +367,112 @@ export function OfficeCanvas() {
 
         {/* ── FURNITURE ── */}
 
-        {/* AIRA office furniture */}
-        <Desk x={160} y={50} color="#3E2723" />
-        <Computer x={164} y={42} on={agents.aira?.state === 'working'} color="#FFD700" />
-        <Chair x={170} y={64} />
-        <Plant x={220} y={70} />
+        {/* AIRA office: desk + monitor + plant */}
+        <DeskSVG x={135} y={42} w={24} h={10} color="#3E2723" />
+        <MonitorSVG x={138} y={34} on={agents.aira?.state === 'working'} color="#FFD700" />
+        <ChairSVG x={142} y={54} />
+        <PlantSVG x={195} y={55} />
 
-        {/* Datta office furniture */}
-        <Desk x={300} y={50} color="#4E342E" />
-        <Computer x={304} y={42} on={agents.datta?.state === 'working'} color="#FF9800" />
-        <Chair x={310} y={64} />
-        <Whiteboard x={340} y={20} />
+        {/* Datta office: desk + monitor + whiteboard */}
+        <DeskSVG x={262} y={42} w={24} h={10} color="#4E342E" />
+        <MonitorSVG x={265} y={34} on={agents.datta?.state === 'working'} color="#FF9800" />
+        <ChairSVG x={270} y={54} />
+        <WhiteboardSVG x={310} y={18} />
 
-        {/* Meeting room furniture */}
-        <MeetingTable x={440} y={35} />
-        <Whiteboard x={410} y={15} />
-        {/* Meeting chairs around table */}
-        <Chair x={445} y={28} />
-        <Chair x={475} y={28} />
-        <Chair x={505} y={28} />
-        <Chair x={445} y={68} />
-        <Chair x={475} y={68} />
-        <Chair x={505} y={68} />
-
-        {/* Planet cabin furniture */}
-        <Desk x={30} y={145} color="#455A64" />
-        <Computer x={34} y={137} on={agents.mercury?.state === 'working'} color="#90A4AE" />
-        <Chair x={40} y={158} />
-
-        <Desk x={158} y={145} color="#37474F" />
-        <Computer x={162} y={137} on={agents.mars?.state === 'working'} color="#EF5350" />
-        <Chair x={168} y={158} />
-
-        <Desk x={286} y={145} color="#4E342E" />
-        <Computer x={290} y={137} on={agents.venus?.state === 'working'} color="#FFB74D" />
-        <Chair x={296} y={158} />
-
-        <Desk x={414} y={145} color="#263238" />
-        <Computer x={418} y={137} on={agents.earth?.state === 'working'} color="#42A5F5" />
-        <Chair x={424} y={158} />
-
-        <Desk x={540} y={145} color="#37474F" />
-        <Computer x={544} y={137} on={agents.neptune?.state === 'working'} color="#5C6BC0" />
-        <Chair x={550} y={158} />
-
-        <Desk x={638} y={145} color="#212121" />
-        <Computer x={642} y={137} on={agents.pluto?.state === 'working'} color="#AB47BC" />
-        <Chair x={648} y={158} />
-
-        {/* Dormitory beds */}
-        <Bed x={25} y={245} occupied={agents.mercury?.room === 'dormitory'} />
-        <Bed x={65} y={245} occupied={agents.mars?.room === 'dormitory'} />
-        <Bed x={105} y={245} occupied={agents.venus?.room === 'dormitory'} />
-        <Bed x={145} y={245} occupied={agents.earth?.room === 'dormitory'} />
-        <Bed x={185} y={245} occupied={agents.neptune?.room === 'dormitory'} />
-        <Bed x={225} y={245} occupied={agents.pluto?.room === 'dormitory'} />
-        {/* Bed labels */}
-        <text x={39} y={270} textAnchor="middle" fontSize="5" fill="#556">☿</text>
-        <text x={79} y={270} textAnchor="middle" fontSize="5" fill="#556">♂</text>
-        <text x={119} y={270} textAnchor="middle" fontSize="5" fill="#556">♀</text>
-        <text x={159} y={270} textAnchor="middle" fontSize="5" fill="#556">🌍</text>
-        <text x={199} y={270} textAnchor="middle" fontSize="5" fill="#556">♆</text>
-        <text x={239} y={270} textAnchor="middle" fontSize="5" fill="#556">🪐</text>
-
-        {/* Reception furniture */}
-        <Mailbox x={30} y={50} hasNew={mailboxStatus === 'new_project'} />
-        <Desk x={60} y={70} color="#33691E" />
+        {/* Meeting room: large table + chairs */}
+        <MeetingTableSVG x={395} y={30} />
+        <WhiteboardSVG x={365} y={14} />
+        <ChairSVG x={400} y={24} />
+        <ChairSVG x={428} y={24} />
+        <ChairSVG x={456} y={24} />
+        <ChairSVG x={400} y={56} />
+        <ChairSVG x={428} y={56} />
+        <ChairSVG x={456} y={56} />
 
         {/* Integration workspace */}
-        <Desk x={380} y={260} color="#1B5E20" />
-        <Computer x={384} y={252} on={agents.datta?.state === 'working' && phase === 'datta_integrating'} color="#4CAF50" />
-        <Plant x={500} y={280} />
+        <DeskSVG x={570} y={40} w={22} h={10} color="#1B5E20" />
+        <MonitorSVG x={573} y={32} on={phase === 'datta_integrating'} color="#4CAF50" />
+        <PlantSVG x={640} y={55} />
 
-        {/* Live Preview area */}
-        <rect x={545} y={240} width={148} height={80} rx={3} fill="#0D1B2A" stroke="#1B3A5C" strokeWidth={0.5} />
-        <text x={619} y={250} textAnchor="middle" fontSize="5" fill="#4FC3F7" fontFamily="monospace">
+        {/* Live preview screen */}
+        <rect x={688} y={25} width={90} height={55} rx={3} fill="#0A1520" stroke="#1B3A5C" strokeWidth={0.4} />
+        <text x={733} y={35} textAnchor="middle" fontSize="5" fill="#4FC3F7" fontFamily="monospace" opacity={0.7}>
           LIVE PREVIEW
         </text>
 
-        {/* ── CHARACTERS ── */}
-        {Object.entries(agents).map(([agentId, agent]) => {
-          const room = agent.room
-            .replace('_cabin', '_cabin')
-            .replace('aira_cabin', 'aira_office')
-            .replace('datta_cabin', 'datta_office')
-          const normalizedRoom = Object.keys(ROOMS).find(r => r === room) || 'dormitory'
-          const roomDef = ROOMS[normalizedRoom]
-          if (!roomDef) return null
+        {/* Reception: mailbox */}
+        <MailboxSVG x={25} y={35} hasNew={mailboxStatus === 'new_project'} />
+        <DeskSVG x={55} y={55} w={20} h={8} color="#1B5E20" />
 
-          // Get position within room
-          const roomAgents = agentsByRoom[normalizedRoom] || []
-          const indexInRoom = roomAgents.indexOf(agent)
-          const positions = AGENT_POSITIONS[normalizedRoom]
-          const basePos = positions?.[agentId] || { x: roomDef.w / 2, y: roomDef.h / 2 }
-
-          // Offset if multiple agents in same room
-          const offsetX = roomAgents.length > 1 ? (indexInRoom * 16) - (roomAgents.length * 8) : 0
-
+        {/* Planet cabin furniture — desks + monitors for each cabin */}
+        {[
+          { room: 'mercury_cabin', color: '#90A4AE', on: agents.mercury?.state === 'working' },
+          { room: 'mars_cabin',    color: '#EF5350', on: agents.mars?.state === 'working' },
+          { room: 'venus_cabin',   color: '#FFB74D', on: agents.venus?.state === 'working' },
+          { room: 'earth_cabin',   color: '#42A5F5', on: agents.earth?.state === 'working' },
+          { room: 'jupiter_cabin', color: '#C8A951', on: agents.jupiter?.state === 'working' },
+          { room: 'saturn_cabin',  color: '#A89070', on: agents.saturn?.state === 'working' },
+          { room: 'neptune_cabin', color: '#5C6BC0', on: agents.neptune?.state === 'working' },
+          { room: 'uranus_cabin',  color: '#7EC8C8', on: agents.uranus?.state === 'working' },
+          { room: 'pluto_cabin',   color: '#AB47BC', on: agents.pluto?.state === 'working' },
+        ].map(({ room, color, on }) => {
+          const r = ROOMS.find(rm => rm.id === room)
+          if (!r) return null
           return (
-            <PixelCharacter
-              key={agentId}
-              agent={agentId as AgentId}
-              state={agent.state}
-              x={roomDef.x + basePos.x + offsetX}
-              y={roomDef.y + basePos.y}
-              size={16}
-            />
+            <g key={room}>
+              <DeskSVG x={r.x + 12} y={r.y + 38} w={20} h={8} color="#333" />
+              <MonitorSVG x={r.x + 15} y={r.y + 30} on={on} color={color} />
+              <ChairSVG x={r.x + 18} y={r.y + 48} />
+            </g>
           )
         })}
 
-        {/* Phase overlay */}
-        {phase !== 'idle' && phase !== 'completed' && (
+        {/* Dormitory beds */}
+        {BED_POSITIONS.map(bed => {
+          const dorm = ROOMS.find(r => r.id === 'dormitory')!
+          const agentId = bed.agent as AgentId
+          const agent = agents[agentId]
+          const isSleeping = agent && (agent.state === 'sleeping' || agent.state === 'idle')
+          return (
+            <g key={bed.agent}>
+              <BedSVG x={dorm.x + bed.bx} y={dorm.y + bed.by} occupied={isSleeping} />
+              <text x={dorm.x + bed.bx + 26} y={dorm.y + bed.by + 25} textAnchor="middle"
+                fontSize="4" fill="#556" fontFamily="Inter">
+                {AGENT_DEFS[agentId]?.symbol}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* ── CHARACTERS ── */}
+        {Object.entries(agentsByRoom).map(([roomId, roomAgents]) => {
+          if (roomId === 'hallway') return null
+          return roomAgents.map((agent, idx) => {
+            const pos = getAgentCanvasPosition(agent.agent, roomId, idx, roomAgents.length)
+            return (
+              <g
+                key={agent.agent}
+                style={{ cursor: 'pointer' }}
+                onClick={() => onAgentClick?.(agent.agent)}
+              >
+                <CharacterSprite
+                  agent={agent.agent}
+                  state={agent.state}
+                  x={pos.x}
+                  y={pos.y}
+                  size={12}
+                />
+              </g>
+            )
+          })
+        })}
+
+        {/* Phase watermark */}
+        {phase !== 'idle' && (
           <text
-            x={canvasW / 2}
-            y={canvasH - 5}
-            textAnchor="middle"
-            fontSize="7"
-            fill="#4FC3F7"
-            fontFamily="Inter, sans-serif"
-            opacity={0.6}
+            x={canvasW / 2} y={canvasH - 4}
+            textAnchor="middle" fontSize="5.5" fill="#4FC3F730"
+            fontFamily="Inter, sans-serif" fontWeight="bold" letterSpacing="1"
           >
             {phase.replace(/_/g, ' ').toUpperCase()}
           </text>

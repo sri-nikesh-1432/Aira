@@ -524,17 +524,22 @@ export default function ProjectWorkspacePage() {
                 {/* Top bar */}
                 <TopBar
                   isRunning={isRunning}
-                  onSubmitProject={(idea) => {
-                    // Could trigger a new project or update the current one
-                    // For now, just update the office store
-                    officeStore.setProject(projectId, idea)
+                  onSubmitProject={async (idea) => {
+                    try {
+                      const { createProject } = await import('@/lib/api')
+                      const result = await createProject({ idea })
+                      // Navigate to the new project's workspace
+                      window.location.href = `/project/${result.project_id}`
+                    } catch (e) {
+                      console.error('Failed to create project:', e)
+                    }
                   }}
                 />
                 {/* Main content: Left Panel + Office + Right Panel */}
                 <div className="flex flex-1 overflow-hidden">
                   <LeftPanel />
                   <div className="flex-1 overflow-hidden">
-                    <OfficeCanvas />
+                    <OfficeCanvas onAgentClick={(id) => setSelectedAgent(id)} />
                   </div>
                   <RightPanel />
                 </div>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
 import type { AgentId } from '@/types/office'
 
-const AGENT_META: Record<AgentId, { name: string; symbol: string; role: string; color: string }> = {
+const AGENT_META: Record<string, { name: string; symbol: string; role: string; color: string }> = {
   postman:  { name: 'Postman',  symbol: '📮', role: 'Delivery',    color: '#059669' },
   aira:     { name: 'AIRA',     symbol: '☀️', role: 'CEO',         color: '#D4A574' },
   datta:    { name: 'Datta',    symbol: '👨‍💼', role: 'Project Mgr', color: '#8B5A2B' },

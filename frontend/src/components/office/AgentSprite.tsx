@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import type { AgentLocation, AgentId, AgentOfficeState } from '@/types/office'
 
 // ─── Agent visual configuration ───────────────────────────────────────────────
-const AGENT_VISUALS: Record<AgentId, {
+const AGENT_VISUALS: Record<string, {
   name: string
   symbol: string
   color: string

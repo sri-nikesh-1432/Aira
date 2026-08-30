@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { SolarSystem } from '@/components/planets/SolarSystem'
 import { PlanetCard } from '@/components/planets/PlanetCard'
+import { VirtualOffice, EventFeed, CommandCenter, EmployeeBar } from '@/components/office'
+import { useOfficeStore } from '@/store/officeStore'
 import { PLANETS, type PlanetId, type Project, type StreamEvent } from '@/types'
 import { getProject, streamProject, startPreview, getPreviewStatus, stopPreview, api } from '@/lib/api'
 import { clsx } from 'clsx'
@@ -28,7 +30,7 @@ interface FileNode {
   children?: FileNode[]
 }
 
-type WorkspaceTab = 'planets' | 'computer' | 'research' | 'architecture' | 'design' | 'code' | 'deployment'
+type WorkspaceTab = 'office' | 'planets' | 'computer' | 'research' | 'architecture' | 'design' | 'code' | 'deployment'
 
 function buildTree(files: FileNode[]): FileNode[] {
   const root: FileNode[] = []
@@ -122,6 +124,8 @@ export default function ProjectWorkspacePage() {
   ])
   const [downloadingZip, setDownloadingZip] = useState(false)
 
+  const officeStore = useOfficeStore()
+
   const addTerminalLine = (line: string) => {
     setTerminalLines(prev => [...prev.slice(-100), line])
   }
@@ -135,11 +139,16 @@ export default function ProjectWorkspacePage() {
       setProject(p)
       setLoading(false)
 
+      // Initialize office store with project
+      officeStore.setProject(projectId, p.request?.idea || '')
+
       if (p.status === 'running') {
         cleanup = streamProject(projectId, (ev) => {
           setEvents(prev => [...prev, ev])
           if (ev.planet_statuses) setProject(prev => prev ? { ...prev, planet_statuses: ev.planet_statuses as any } : prev)
           if (ev.final_output) setProject(prev => prev ? { ...prev, status: 'completed', final_output: ev.final_output } : prev)
+          // Feed SSE events into office store
+          officeStore.processStreamEvent(ev)
         }, () => {
           getProject(projectId).then(p2 => {
             setProject(p2)
@@ -384,6 +393,7 @@ export default function ProjectWorkspacePage() {
   }, {})
 
   const tabs: { id: WorkspaceTab; label: string; icon: any }[] = [
+    { id: 'office',       label: 'Virtual Office', icon: Globe },
     { id: 'planets',      label: 'Live Feed',    icon: Star },
     { id: 'computer',     label: 'Live Preview', icon: Monitor },
     { id: 'research',     label: 'Research',      icon: FileText },
@@ -507,6 +517,25 @@ export default function ProjectWorkspacePage() {
 
           {/* Tab content */}
           <div className="flex-1 overflow-hidden">
+            {activeTab === 'office' && (
+              <div className="flex h-full overflow-hidden">
+                {/* Virtual Office main area */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <VirtualOffice />
+                  <EmployeeBar />
+                </div>
+                {/* Right panels: Command Center + Event Feed */}
+                <div className="w-64 flex-shrink-0 border-l border-[#2C2420]/8 flex flex-col overflow-hidden">
+                  <div className="flex-1 overflow-hidden border-b border-[#2C2420]/5">
+                    <CommandCenter />
+                  </div>
+                  <div className="h-1/2 overflow-hidden">
+                    <EventFeed />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'planets' && <PlanetsTab events={events} project={project} logRef={logRef} />}
 
             {activeTab === 'computer' && (

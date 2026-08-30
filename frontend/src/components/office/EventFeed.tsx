@@ -13,7 +13,7 @@ const AGENT_COLORS: Record<AgentId, string> = {
   mars: '#DC2626',
   venus: '#D97706',
   earth: '#2563EB',
-  neptune: '#2563EB',
+  neptune: '#4B7BE8',
   pluto: '#7C3AED',
 }
 
@@ -29,6 +29,28 @@ const AGENT_SYMBOLS: Record<AgentId, string> = {
   pluto: '🪐',
 }
 
+const EVENT_TYPE_STYLES: Record<string, { bg: string; border: string; icon?: string }> = {
+  project_arrived:     { bg: '#ECFDF5', border: '#D1FAE5' },
+  aira_received:       { bg: '#FFFBEB', border: '#FEF3C7' },
+  aira_to_datta:       { bg: '#FFF7ED', border: '#FFEDD5' },
+  meeting_called:      { bg: '#F5F3FF', border: '#EDE9FE' },
+  agent_entered_meeting: { bg: '#F5F3FF', border: '#EDE9FE' },
+  agent_started_work:  { bg: '#ECFDF5', border: '#D1FAE5' },
+  agent_working:       { bg: '#ECFDF5', border: '#D1FAE5' },
+  agent_completed:     { bg: '#ECFDF5', border: '#D1FAE5' },
+  agent_reporting:     { bg: '#FFFBEB', border: '#FEF3C7' },
+  agent_reported:      { bg: '#FFFBEB', border: '#FEF3C7' },
+  agent_to_dorm:       { bg: '#F9FAFB', border: '#F3F4F6' },
+  agent_sleeping:      { bg: '#F9FAFB', border: '#F3F4F6' },
+  agent_woken:         { bg: '#FEF3C7', border: '#FDE68A' },
+  datta_integrating:   { bg: '#FFF7ED', border: '#FFEDD5' },
+  integration_complete: { bg: '#ECFDF5', border: '#D1FAE5' },
+  aira_validating:     { bg: '#FFFBEB', border: '#FEF3C7' },
+  validation_complete: { bg: '#ECFDF5', border: '#D1FAE5' },
+  error:               { bg: '#FEF2F2', border: '#FECACA' },
+  user_feedback:       { bg: '#EFF6FF', border: '#DBEAFE' },
+}
+
 function EventItem({ event, index }: { event: OfficeEvent; index: number }) {
   const color = AGENT_COLORS[event.agent] || '#8B5A2B'
   const symbol = AGENT_SYMBOLS[event.agent] || '⚡'
@@ -37,34 +59,48 @@ function EventItem({ event, index }: { event: OfficeEvent; index: number }) {
     minute: '2-digit',
     second: '2-digit',
   })
+  const style = EVENT_TYPE_STYLES[event.event_type] || { bg: 'transparent', border: 'transparent' }
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.02, 0.5) }}
-      className="flex items-start gap-2.5 py-2 group"
+      className="flex items-start gap-2 py-1.5 group"
     >
-      {/* Timestamp */}
-      <span className="text-[9px] font-mono text-[#A19B95] w-14 flex-shrink-0 pt-0.5 tabular-nums">
-        {time}
-      </span>
-
-      {/* Agent indicator */}
-      <div
-        className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-xs transition-transform group-hover:scale-110"
-        style={{ background: `${color}12`, border: `1px solid ${color}20` }}
-      >
-        {symbol}
+      {/* Timeline dot */}
+      <div className="flex flex-col items-center flex-shrink-0 pt-1">
+        <div
+          className="w-5 h-5 rounded-md flex items-center justify-center text-[10px]"
+          style={{ background: `${color}12`, border: `1px solid ${color}25` }}
+        >
+          {symbol}
+        </div>
       </div>
 
-      {/* Message */}
+      {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-[#5A544E] leading-relaxed">{event.message}</p>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span
+            className="text-[9px] font-bold"
+            style={{ color }}
+          >
+            {event.agent.toUpperCase()}
+          </span>
+          <span className="text-[8px] text-[#D4C8BC]">•</span>
+          <span className="text-[8px] text-[#A19B95] font-mono">{time}</span>
+        </div>
+        <p className="text-[10px] text-[#5A544E] leading-relaxed">{event.message}</p>
         {event.from_room && event.to_room && (
-          <p className="text-[9px] text-[#A19B95] mt-0.5">
-            {event.from_room.replace(/_/g, ' ')} → {event.to_room.replace(/_/g, ' ')}
-          </p>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[8px] text-[#A19B95]">
+              {event.from_room.replace(/_/g, ' ')}
+            </span>
+            <span className="text-[8px] text-[#D4C8BC]">→</span>
+            <span className="text-[8px] text-[#A19B95]">
+              {event.to_room.replace(/_/g, ' ')}
+            </span>
+          </div>
         )}
       </div>
     </motion.div>
@@ -95,7 +131,9 @@ export function EventFeed() {
         <span className="text-[10px] font-bold uppercase tracking-wider text-[#716B65]">
           Activity Feed
         </span>
-        <span className="ml-auto text-[9px] text-[#A19B95]">{events.length} events</span>
+        <span className="ml-auto text-[9px] text-[#A19B95]">
+          {events.length} events
+        </span>
       </div>
 
       {/* Events list */}

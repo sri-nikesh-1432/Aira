@@ -1,123 +1,187 @@
 'use client'
 
-import { useEffect, useMemo, useCallback } from 'react'
+import { useEffect, useMemo, useCallback, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
 import { AgentSprite } from './AgentSprite'
-import type { AgentId, OfficeRoom, OfficeEvent } from '@/types/office'
+import type { AgentId, OfficeRoom, OfficeEvent, AgentOfficeState, AgentLocation } from '@/types/office'
 
-// ─── Room layout definitions ──────────────────────────────────────────────────
-// The office is rendered as a CSS grid with positioned rooms.
-// Grid layout (11 cols x 7 rows):
-//
-//   Row 0: [Mercury Cabin] [   Meeting Room   ] [Mars Cabin]
-//   Row 1: [Venus Cabin  ] [  AIRA Cabin      ] [Earth Cabin]
-//   Row 2: [Neptune Cabin] [  Datta Cabin     ] [Pluto Cabin]
-//   Row 3: [     Reception / Mailbox / Postman entrance         ]
-//   Row 4: [              Dormitory (all beds)                  ]
+// ─── Agent metadata ──────────────────────────────────────────────────────────
+const AGENT_META: Record<AgentId, {
+  name: string
+  symbol: string
+  color: string
+  role: string
+  cabin: OfficeRoom
+}> = {
+  postman:  { name: 'Postman',  symbol: '📮', color: '#059669', role: 'Delivery',       cabin: 'reception' },
+  aira:     { name: 'AIRA',     symbol: '☀️', color: '#D4A574', role: 'CEO',            cabin: 'aira_cabin' },
+  datta:    { name: 'Datta',    symbol: '👨‍💼', color: '#8B5A2B', role: 'Project Manager', cabin: 'datta_cabin' },
+  mercury:  { name: 'Mercury',  symbol: '☿',  color: '#9CA3AF', role: 'Research',       cabin: 'mercury_cabin' },
+  mars:     { name: 'Mars',     symbol: '♂',  color: '#DC2626', role: 'Architect',      cabin: 'mars_cabin' },
+  venus:    { name: 'Venus',    symbol: '♀',  color: '#D97706', role: 'UI/UX',          cabin: 'venus_cabin' },
+  earth:    { name: 'Earth',    symbol: '🌍', color: '#2563EB', role: 'Developer',      cabin: 'earth_cabin' },
+  neptune:  { name: 'Neptune',  symbol: '♆',  color: '#4B7BE8', role: 'QA',             cabin: 'neptune_cabin' },
+  pluto:    { name: 'Pluto',    symbol: '🪐', color: '#7C3AED', role: 'DevOps',         cabin: 'pluto_cabin' },
+}
 
-const ROOM_CONFIGS: Record<OfficeRoom, {
+// ─── State descriptions ──────────────────────────────────────────────────────
+const STATE_DESCRIPTIONS: Record<AgentOfficeState, string> = {
+  idle:      'Standing by',
+  walking:   'Moving between rooms',
+  meeting:   'In team meeting',
+  at_desk:   'At desk, ready',
+  working:   'Actively working',
+  reporting: 'Reporting results',
+  completed: 'Task complete',
+  sleeping:   'Resting in dormitory',
+  error:     'Encountered error',
+  arriving:  'Arriving at office',
+}
+
+// ─── Room definitions with positions ─────────────────────────────────────────
+interface RoomDef {
+  id: OfficeRoom
   label: string
   emoji: string
   color: string
-  gridArea?: string
-  className?: string
-}> = {
-  aira_cabin:    { label: 'AIRA',    emoji: '☀️', color: '#D4A574', className: 'col-start-6 col-span-2 row-start-1 row-span-1' },
-  meeting_room:  { label: 'Meeting Room', emoji: '🏢', color: '#8B5A2B', className: 'col-start-3 col-span-4 row-start-1 row-span-1' },
-  mercury_cabin: { label: 'Mercury', emoji: '☿', color: '#9CA3AF', className: 'col-start-1 col-span-2 row-start-1 row-span-1' },
-  mars_cabin:    { label: 'Mars',    emoji: '♂', color: '#DC2626', className: 'col-start-9 col-span-2 row-start-1 row-span-1' },
-  venus_cabin:   { label: 'Venus',   emoji: '♀', color: '#D97706', className: 'col-start-1 col-span-2 row-start-2 row-span-1' },
-  earth_cabin:   { label: 'Earth',   emoji: '🌍', color: '#2563EB', className: 'col-start-9 col-span-2 row-start-2 row-span-1' },
-  neptune_cabin: { label: 'Neptune', emoji: '♆', color: '#2563EB', className: 'col-start-1 col-span-2 row-start-3 row-span-1' },
-  pluto_cabin:   { label: 'Pluto',   emoji: '🪐', color: '#7C3AED', className: 'col-start-9 col-span-2 row-start-3 row-span-1' },
-  datta_cabin:   { label: 'Datta',   emoji: '👨‍💼', color: '#8B5A2B', className: 'col-start-5 col-span-2 row-start-3 row-span-1' },
-  dormitory:     { label: 'Dormitory', emoji: '🛏️', color: '#6B7280', className: 'col-start-3 col-span-4 row-start-3 row-span-1' },
-  reception:     { label: 'Reception', emoji: '📮', color: '#059669', className: 'col-start-3 col-span-6 row-start-4 row-span-1' },
-  hallway:       { label: '', emoji: '', color: 'transparent', className: '' },
+  gridCol: string
+  gridRow: string
+  minHeight?: string
 }
 
-// ─── Agent position maps (which room each agent should be in for display) ────
-const AGENT_ROOM_MAP: Record<AgentId, OfficeRoom> = {
-  postman:  'reception',
-  aira:     'aira_cabin',
-  datta:    'datta_cabin',
-  mercury:  'mercury_cabin',
-  mars:     'mars_cabin',
-  venus:    'venus_cabin',
-  earth:    'earth_cabin',
-  neptune:  'neptune_cabin',
-  pluto:    'pluto_cabin',
-}
+const ROOM_DEFS: RoomDef[] = [
+  // Row 1: Side cabins + Meeting Room
+  { id: 'mercury_cabin', label: 'Mercury Cabin',  emoji: '☿',  color: '#9CA3AF', gridCol: 'col-span-2', gridRow: 'row-span-1' },
+  { id: 'meeting_room',  label: 'Meeting Room',   emoji: '🏢', color: '#8B5A2B', gridCol: 'col-span-3', gridRow: 'row-span-1', minHeight: '120px' },
+  { id: 'mars_cabin',    label: 'Mars Cabin',     emoji: '♂',  color: '#DC2626', gridCol: 'col-span-2', gridRow: 'row-span-1' },
+  // Row 2: Side cabins + AIRA + Datta
+  { id: 'venus_cabin',   label: 'Venus Cabin',    emoji: '♀',  color: '#D97706', gridCol: 'col-span-2', gridRow: 'row-span-1' },
+  { id: 'aira_cabin',    label: 'AIRA',           emoji: '☀️', color: '#D4A574', gridCol: 'col-span-1', gridRow: 'row-span-1', minHeight: '110px' },
+  { id: 'earth_cabin',   label: 'Earth Cabin',    emoji: '🌍', color: '#2563EB', gridCol: 'col-span-2', gridRow: 'row-span-1' },
+  // Row 3: Side cabins + Datta + Dorm
+  { id: 'neptune_cabin', label: 'Neptune Cabin',  emoji: '♆',  color: '#4B7BE8', gridCol: 'col-span-2', gridRow: 'row-span-1' },
+  { id: 'datta_cabin',   label: 'Datta Cabin',    emoji: '👨‍💼', color: '#8B5A2B', gridCol: 'col-span-1', gridRow: 'row-span-1' },
+  { id: 'pluto_cabin',   label: 'Pluto Cabin',    emoji: '🪐', color: '#7C3AED', gridCol: 'col-span-2', gridRow: 'row-span-1' },
+  // Row 4: Dormitory
+  { id: 'dormitory',     label: 'Dormitory',       emoji: '🛏️', color: '#6B7280', gridCol: 'col-span-7', gridRow: 'row-span-1', minHeight: '80px' },
+  // Row 5: Reception
+  { id: 'reception',     label: 'Reception & Mailbox', emoji: '📮', color: '#059669', gridCol: 'col-span-7', gridRow: 'row-span-1', minHeight: '64px' },
+]
 
 // ─── Individual Room Component ────────────────────────────────────────────────
-function OfficeRoomTile({
+function RoomTile({
   room,
   agents,
+  onAgentClick,
 }: {
-  room: OfficeRoom
+  room: RoomDef
   agents: ReturnType<typeof useOfficeStore.getState>['agents']
+  onAgentClick?: (agent: AgentId) => void
 }) {
-  const config = ROOM_CONFIGS[room]
-  if (!config || room === 'hallway') return null
-
-  const agentsInRoom = Object.values(agents).filter(
-    (a) => a.room === room && a.state !== 'idle'
+  const agentsInRoom: AgentLocation[] = Object.values(agents).filter(
+    (a) => a.room === room.id && a.state !== 'idle'
   )
+  const allInRoom: AgentLocation[] = Object.values(agents).filter((a) => a.room === room.id)
+  const hasWorking = agentsInRoom.some((a) => a.state === 'working')
+  const hasMeeting = agentsInRoom.some((a) => a.state === 'meeting')
+  const isDormitory = room.id === 'dormitory'
+  const isReception = room.id === 'reception'
+  const isMeetingRoom = room.id === 'meeting_room'
 
-  const isMailbox = room === 'reception'
+  const sleepingAgents = isDormitory
+    ? Object.values(agents).filter((a) => a.room === 'dormitory' && (a.state === 'sleeping' || a.state === 'idle'))
+    : []
 
   return (
     <div
-      className={`relative rounded-2xl border transition-all duration-500 overflow-hidden ${config.className}`}
+      className={`relative rounded-xl border overflow-hidden transition-all duration-700 ${room.gridCol} ${room.gridRow}`}
       style={{
-        background: agentsInRoom.length > 0
-          ? `linear-gradient(135deg, ${config.color}08, ${config.color}15)`
-          : 'rgba(255,252,249,0.5)',
+        background: hasWorking
+          ? `linear-gradient(135deg, ${room.color}06, ${room.color}12)`
+          : hasMeeting
+            ? `linear-gradient(135deg, ${room.color}08, ${room.color}18)`
+            : 'rgba(255,252,249,0.6)',
         borderColor: agentsInRoom.length > 0
-          ? `${config.color}30`
+          ? `${room.color}30`
           : 'rgba(44,36,32,0.06)',
-        minHeight: room === 'reception' ? '64px' : '100px',
+        minHeight: room.minHeight || '100px',
       }}
     >
       {/* Room label */}
-      <div className="absolute top-2 left-3 right-3 flex items-center gap-1.5 z-10">
-        <span className="text-sm">{config.emoji}</span>
+      <div className="absolute top-1.5 left-2.5 right-2.5 flex items-center gap-1.5 z-10">
+        <span className="text-xs">{room.emoji}</span>
         <span
-          className="text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: config.color }}
+          className="text-[9px] font-bold uppercase tracking-wider"
+          style={{ color: room.color }}
         >
-          {config.label}
+          {room.label}
         </span>
-        {agentsInRoom.length > 0 && (
+        {agentsInRoom.length > 0 && !isDormitory && (
           <span
-            className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-            style={{ background: `${config.color}15`, color: config.color }}
+            className="ml-auto text-[8px] px-1.5 py-0.5 rounded-full font-bold"
+            style={{ background: `${room.color}15`, color: room.color }}
           >
             {agentsInRoom.length}
           </span>
         )}
+        {isDormitory && sleepingAgents.length > 0 && (
+          <span className="ml-auto text-[8px] px-1.5 py-0.5 rounded-full font-bold bg-gray-100 text-gray-500">
+            💤 {sleepingAgents.length}
+          </span>
+        )}
       </div>
 
-      {/* Mailbox special content */}
-      {isMailbox && <MailboxContent />}
+      {/* Meeting room special content */}
+      {isMeetingRoom && hasMeeting && (
+        <MeetingRoomContent agents={agentsInRoom} />
+      )}
 
-      {/* Agent sprites in room */}
-      <div className="absolute inset-0 flex items-end justify-center gap-2 pb-2 pt-8 px-2">
-        <AnimatePresence>
-          {agentsInRoom.map((agent) => (
-            <AgentSprite key={agent.agent} agent={agent} size="sm" />
-          ))}
-        </AnimatePresence>
-      </div>
+      {/* Dormitory beds */}
+      {isDormitory && (
+        <DormitoryContent agents={agents} />
+      )}
+
+      {/* Reception / Mailbox */}
+      {isReception && <ReceptionContent agents={agents} />}
+
+      {/* AIRA cabin special content */}
+      {room.id === 'aira_cabin' && (
+        <AIRACabinContent agents={agents} />
+      )}
+
+      {/* Datta cabin special content */}
+      {room.id === 'datta_cabin' && (
+        <DattaCabinContent agents={agents} />
+      )}
+
+      {/* Generic agent sprites in room */}
+      {!isDormitory && !isReception && !isMeetingRoom && room.id !== 'aira_cabin' && room.id !== 'datta_cabin' && (
+        <div className="absolute inset-0 flex items-end justify-center gap-1.5 pb-2 pt-7 px-1.5">
+          <AnimatePresence>
+            {agentsInRoom.map((agent) => (
+              <AgentSprite
+                key={agent.agent}
+                agent={agent}
+                size="sm"
+                onClick={() => onAgentClick?.(agent.agent)}
+              />
+            ))}
+          </AnimatePresence>
+          {agentsInRoom.length === 0 && (
+            <div className="pt-8 text-center w-full">
+              <p className="text-[8px] text-gray-300">Empty</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Active glow */}
-      {agentsInRoom.some((a) => a.state === 'working') && (
+      {(hasWorking || hasMeeting) && (
         <div
-          className="absolute inset-0 pointer-events-none rounded-2xl"
+          className="absolute inset-0 pointer-events-none rounded-xl"
           style={{
-            boxShadow: `inset 0 0 20px ${config.color}10, 0 0 15px ${config.color}08`,
-            animation: 'officeGlow 3s ease-in-out infinite',
+            animation: isMeetingRoom ? 'meetingActiveGlow 3s ease-in-out infinite' : 'roomActiveGlow 3s ease-in-out infinite',
           }}
         />
       )}
@@ -125,176 +189,211 @@ function OfficeRoomTile({
   )
 }
 
-// ─── Mailbox Content ──────────────────────────────────────────────────────────
-function MailboxContent() {
-  const mailboxStatus = useOfficeStore((s) => s.mailboxStatus)
+// ─── AIRA Cabin Content ──────────────────────────────────────────────────────
+function AIRACabinContent({ agents }: { agents: ReturnType<typeof useOfficeStore.getState>['agents'] }) {
+  const aira = agents.aira
+  const isActive = aira && (aira.state === 'working' || aira.state === 'completed')
 
   return (
-    <div className="flex items-center justify-center h-full pt-4">
-      <div className="text-center">
-        <div className="text-2xl mb-1">📮</div>
-        <motion.div
-          key={mailboxStatus}
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-[10px] font-bold"
+    <div className="absolute inset-0 flex flex-col items-center justify-center pt-6">
+      <div className="relative">
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center text-xl border-2 transition-all duration-500"
           style={{
-            color: mailboxStatus === 'new_project'
-              ? '#059669'
-              : mailboxStatus === 'processing'
-                ? '#D97706'
-                : '#9CA3AF',
+            background: isActive ? 'linear-gradient(135deg, #FFD70020, #D4A57420)' : '#D4A57408',
+            borderColor: isActive ? '#D4A574' : '#D4A57440',
+            boxShadow: isActive ? '0 0 20px #D4A57440' : 'none',
           }}
         >
-          {mailboxStatus === 'new_project'
-            ? '📬 NEW PROJECT!'
-            : mailboxStatus === 'processing'
-              ? '⏳ PROCESSING...'
-              : '📭 No new projects'}
-        </motion.div>
+          ☀️
+        </div>
+        {isActive && (
+          <div
+            className="absolute -inset-2 rounded-full border border-dashed"
+            style={{
+              borderColor: '#D4A57440',
+              animation: 'spin 8s linear infinite',
+            }}
+          />
+        )}
+      </div>
+      <p className="text-[9px] font-bold mt-1.5" style={{ color: aira?.state === 'working' ? '#D4A574' : '#D4A57480' }}>
+        AIRA
+      </p>
+      {aira?.currentTask && (
+        <p className="text-[7px] text-[#A19B95] mt-0.5 max-w-[80px] text-center truncate">
+          {aira.currentTask}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Datta Cabin Content ─────────────────────────────────────────────────────
+function DattaCabinContent({ agents }: { agents: ReturnType<typeof useOfficeStore.getState>['agents'] }) {
+  const datta = agents.datta
+  const isActive = datta && (datta.state === 'working' || datta.state === 'meeting')
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center pt-6">
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all duration-500"
+        style={{
+          background: isActive ? '#8B5A2B15' : '#8B5A2B08',
+          borderColor: isActive ? '#8B5A2B' : '#8B5A2B30',
+          boxShadow: isActive ? '0 0 15px #8B5A2B30' : 'none',
+        }}
+      >
+        👨‍💼
+      </div>
+      <p className="text-[8px] font-bold mt-1" style={{ color: isActive ? '#8B5A2B' : '#8B5A2B60' }}>
+        Datta
+      </p>
+    </div>
+  )
+}
+
+// ─── Meeting Room Content ────────────────────────────────────────────────────
+function MeetingRoomContent({ agents }: { agents: AgentLocation[] }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center pt-5">
+      {/* Meeting table */}
+      <div
+        className="relative px-4 py-2 rounded-lg mb-2"
+        style={{ background: '#8B5A2B08', border: '1px dashed #8B5A2B30' }}
+      >
+        <p className="text-[8px] font-bold text-[#8B5A2B] text-center uppercase tracking-wider">
+          📋 Project Kickoff
+        </p>
+      </div>
+      {/* Agents at meeting */}
+      <div className="flex items-center justify-center gap-1 flex-wrap px-2">
+        <AnimatePresence>
+          {agents.filter((a: AgentLocation) => a.state === 'meeting').map((agent: AgentLocation) => (
+            <motion.div
+              key={agent.agent}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="flex flex-col items-center"
+            >
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs border"
+                style={{
+                  background: `${AGENT_META[agent.agent]?.color}15`,
+                  borderColor: `${AGENT_META[agent.agent]?.color}40`,
+                }}
+              >
+                {AGENT_META[agent.agent]?.symbol}
+              </div>
+              <p className="text-[6px] mt-0.5" style={{ color: AGENT_META[agent.agent]?.color }}>
+                {AGENT_META[agent.agent]?.name}
+              </p>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   )
 }
 
-// ─── Dormitory Component ──────────────────────────────────────────────────────
-function DormitoryTile({
-  agents,
-}: {
-  agents: ReturnType<typeof useOfficeStore.getState>['agents']
-}) {
-  const sleepingAgents = Object.values(agents).filter(
+// ─── Dormitory Content ───────────────────────────────────────────────────────
+function DormitoryContent({ agents }: { agents: ReturnType<typeof useOfficeStore.getState>['agents'] }) {
+  const sleeping: AgentLocation[] = Object.values(agents).filter(
     (a) => a.room === 'dormitory' && (a.state === 'sleeping' || a.state === 'idle')
   )
-
-  const config = ROOM_CONFIGS.dormitory
-
-  return (
-    <div
-      className={`relative rounded-2xl border overflow-hidden ${config.className}`}
-      style={{
-        background: 'rgba(255,252,249,0.5)',
-        borderColor: 'rgba(44,36,32,0.06)',
-        minHeight: '100px',
-      }}
-    >
-      <div className="absolute top-2 left-3 right-3 flex items-center gap-1.5 z-10">
-        <span className="text-sm">{config.emoji}</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">
-          Dormitory
-        </span>
-        {sleepingAgents.length > 0 && (
-          <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-            {sleepingAgents.length} sleeping
-          </span>
-        )}
-      </div>
-
-      {/* Bed slots */}
-      <div className="flex items-end justify-center gap-1.5 pb-2 pt-8 px-2 flex-wrap">
-        {sleepingAgents.map((agent) => (
-          <div key={agent.agent} className="flex flex-col items-center gap-0.5">
-            <AgentSprite agent={agent} size="xs" />
-            <div className="text-[8px] text-gray-400">💤</div>
-          </div>
-        ))}
-        {sleepingAgents.length === 0 && (
-          <p className="text-[10px] text-gray-300 pt-6">All agents active</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Walking hallway overlay ──────────────────────────────────────────────────
-function WalkingAgents({
-  agents,
-}: {
-  agents: ReturnType<typeof useOfficeStore.getState>['agents']
-}) {
-  const walking = Object.values(agents).filter(
-    (a) => a.state === 'walking' || a.state === 'reporting' || a.state === 'arriving'
+  const active: AgentLocation[] = Object.values(agents).filter(
+    (a) => a.room !== 'dormitory' && a.state !== 'idle' && a.state !== 'sleeping'
   )
 
-  if (walking.length === 0) return null
-
   return (
-    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center gap-4 z-20 pointer-events-none">
-      <AnimatePresence>
-        {walking.map((agent) => (
+    <div className="absolute inset-0 flex items-center gap-3 pt-6 px-3">
+      {/* Sleeping beds */}        <div className="flex items-center gap-1 flex-wrap flex-1 justify-center">
+        {sleeping.map((agent: AgentLocation) => (
           <motion.div
             key={agent.agent}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              x: agent.state === 'reporting' ? [0, 10, 0] : 0,
-            }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            transition={{ duration: 0.5 }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
             className="flex flex-col items-center"
           >
-            <AgentSprite agent={agent} size="sm" />
-            <div className="text-[9px] text-[#8B5A2B] font-medium mt-0.5 bg-white/80 px-1.5 py-0.5 rounded-full shadow-sm">
-              {agent.state === 'reporting' ? '📋 Reporting...' : '🚶 Moving...'}
-            </div>
+            <AgentSprite agent={agent} size="xs" showLabel={false} />
+            <p className="text-[6px] text-gray-400 mt-0.5">💤</p>
           </motion.div>
         ))}
-      </AnimatePresence>
+        {sleeping.length === 0 && (
+          <p className="text-[8px] text-gray-300">All agents active</p>
+        )}
+      </div>
+      {/* Activity summary */}
+      {active.length > 0 && (
+        <div className="flex items-center gap-1 text-[8px] text-[#716B65] flex-shrink-0">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          {active.length} active
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── Main Virtual Office Component ────────────────────────────────────────────
-export function VirtualOffice() {
-  const agents = useOfficeStore((s) => s.agents)
-  const phase = useOfficeStore((s) => s.phase)
-  const projectIdea = useOfficeStore((s) => s.projectIdea)
-
-  const rooms: OfficeRoom[] = [
-    'mercury_cabin', 'meeting_room', 'mars_cabin',
-    'venus_cabin', 'aira_cabin', 'earth_cabin',
-    'neptune_cabin', 'datta_cabin', 'pluto_cabin',
-    'reception',
-  ]
+// ─── Reception / Mailbox Content ─────────────────────────────────────────────
+function ReceptionContent({ agents }: { agents: ReturnType<typeof useOfficeStore.getState>['agents'] }) {
+  const mailboxStatus = useOfficeStore((s) => s.mailboxStatus)
+  const postman = agents.postman
+  const isPostmanArriving = postman && (postman.state === 'arriving' || postman.state === 'walking')
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-[#F5F0EB] overflow-hidden">
-      {/* Office header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#2C2420]/5 bg-[#FFFCF9]/80 backdrop-blur-sm flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm">🏢</span>
-          <div>
-            <p className="text-xs font-bold text-[#2C2420]">AIRA Virtual Office</p>
-            <p className="text-[9px] text-[#A19B95] capitalize">
-              Phase: {phase.replace(/_/g, ' ')}
-            </p>
-          </div>
-        </div>
-        {projectIdea && (
-          <div className="text-right max-w-xs">
-            <p className="text-[10px] text-[#A19B95] truncate">{projectIdea}</p>
-          </div>
-        )}
+    <div className="absolute inset-0 flex items-center justify-center gap-6 pt-4">
+      {/* Postman */}
+      <div className="flex flex-col items-center">
+        <motion.div
+          animate={isPostmanArriving ? { x: [0, 5, 0] } : {}}
+          transition={{ duration: 0.8, repeat: Infinity }}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-base border-2"
+          style={{
+            background: isPostmanArriving ? '#05966915' : '#05966908',
+            borderColor: isPostmanArriving ? '#059669' : '#05966930',
+          }}
+        >
+          🚶
+        </motion.div>
+        <p className="text-[7px] text-gray-400 mt-0.5">Postman</p>
       </div>
 
-      {/* Office grid */}
-      <div className="flex-1 p-3 overflow-auto">
-        <div className="grid grid-cols-11 grid-rows-5 gap-2 h-full min-h-[420px]">
-          {rooms.map((room) => {
-            if (room === 'dormitory') {
-              return <DormitoryTile key={room} agents={agents} />
-            }
-            return <OfficeRoomTile key={room} room={room} agents={agents} />
-          })}
-        </div>
+      {/* Mailbox */}
+      <div className="flex flex-col items-center">
+        <motion.div
+          key={mailboxStatus}
+          initial={{ scale: 0.8 }}
+          animate={{ scale: mailboxStatus === 'new_project' ? [1, 1.1, 1] : 1 }}
+          transition={{ duration: 1, repeat: mailboxStatus === 'new_project' ? Infinity : 0 }}
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg border-2"
+          style={{
+            background: mailboxStatus === 'new_project' ? '#05966915'
+              : mailboxStatus === 'processing' ? '#D9770610'
+              : '#6B728008',
+            borderColor: mailboxStatus === 'new_project' ? '#059669'
+              : mailboxStatus === 'processing' ? '#D9770640'
+              : '#6B728030',
+          }}
+        >
+          📮
+        </motion.div>
+        <motion.p
+          key={mailboxStatus}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-[8px] font-bold mt-1"
+          style={{
+            color: mailboxStatus === 'new_project' ? '#059669'
+              : mailboxStatus === 'processing' ? '#D97706'
+              : '#9CA3AF',
+          }}
+        >
+          {mailboxStatus === 'new_project' ? '📬 NEW PROJECT!'
+            : mailboxStatus === 'processing' ? '⏳ PROCESSING...'
+            : '📭 No new projects'}
+        </motion.p>
       </div>
-
-      {/* Walking agents overlay */}
-      <WalkingAgents agents={agents} />
-
-      {/* Workflow phase indicator */}
-      <WorkflowIndicator phase={phase} />
     </div>
   )
 }
@@ -334,6 +433,130 @@ function WorkflowIndicator({ phase }: { phase: string }) {
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: info.color }} />
         )}
       </motion.div>
+    </div>
+  )
+}
+
+// ─── Walking Agents Overlay ──────────────────────────────────────────────────
+function WalkingAgents({
+  agents,
+}: {
+  agents: ReturnType<typeof useOfficeStore.getState>['agents']
+}) {
+  const walking: AgentLocation[] = Object.values(agents).filter(
+    (a) => a.state === 'walking' || a.state === 'reporting' || a.state === 'arriving'
+  )
+
+  if (walking.length === 0) return null
+
+  return (
+    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center gap-3 z-20 pointer-events-none">
+      <AnimatePresence>
+        {walking.map((agent) => {
+          const meta = AGENT_META[agent.agent]
+          return (
+            <motion.div
+              key={agent.agent}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                x: agent.state === 'reporting' ? [0, 8, 0] : agent.state === 'arriving' ? [-8, 0, 8] : 0,
+              }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{
+                duration: 0.5,
+                x: { duration: 1.2, repeat: Infinity, ease: 'easeInOut' },
+              }}
+              className="flex flex-col items-center"
+            >
+              <AgentSprite agent={agent} size="sm" showLabel={false} />
+              <div
+                className="text-[8px] font-bold mt-0.5 bg-white/90 px-2 py-0.5 rounded-full shadow-sm"
+                style={{ color: meta?.color || '#8B5A2B' }}
+              >
+                {agent.state === 'reporting' ? '📋 Reporting...' : agent.state === 'arriving' ? '📮 Arriving...' : '🚶 Moving...'}
+              </div>
+            </motion.div>
+          )
+        })}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── Main Virtual Office Component ────────────────────────────────────────────
+export function VirtualOffice({ onAgentClick }: { onAgentClick?: (agent: AgentId) => void }) {
+  const agents = useOfficeStore((s) => s.agents)
+  const phase = useOfficeStore((s) => s.phase)
+  const projectIdea = useOfficeStore((s) => s.projectIdea)
+
+  // Count stats
+  const working = Object.values(agents).filter(a => a.state === 'working').length
+  const sleeping = Object.values(agents).filter(a => a.state === 'sleeping' || a.state === 'idle').length
+  const meeting = Object.values(agents).filter(a => a.state === 'meeting').length
+  const walking = Object.values(agents).filter(a => a.state === 'walking' || a.state === 'reporting').length
+  const total = Object.keys(agents).length
+
+  return (
+    <div className="relative w-full h-full flex flex-col bg-[#F5F0EB] overflow-hidden">
+      {/* Office header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[#2C2420]/5 bg-[#FFFCF9]/80 backdrop-blur-sm flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">🏢</span>
+          <div>
+            <p className="text-[11px] font-bold text-[#2C2420]">AIRA Virtual Office</p>
+            <p className="text-[9px] text-[#A19B95] capitalize">
+              Phase: {phase.replace(/_/g, ' ')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Agent count badges */}
+          <div className="flex items-center gap-1.5">
+            {working > 0 && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold border border-emerald-200">
+                ⚡ {working} working
+              </span>
+            )}
+            {meeting > 0 && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-bold border border-amber-200">
+                🏢 {meeting} meeting
+              </span>
+            )}
+            {walking > 0 && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-bold border border-blue-200">
+                🚶 {walking} moving
+              </span>
+            )}
+            {sleeping > 0 && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-500 font-bold border border-gray-200">
+                💤 {sleeping} idle
+              </span>
+            )}
+          </div>
+          {projectIdea && (
+            <div className="text-right max-w-[200px] hidden lg:block">
+              <p className="text-[9px] text-[#A19B95] truncate">{projectIdea}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Office grid */}
+      <div className="flex-1 p-3 overflow-auto">
+        <div className="grid grid-cols-7 grid-rows-5 gap-2 h-full min-h-[480px]">
+          {ROOM_DEFS.map((room) => (
+            <RoomTile key={room.id} room={room} agents={agents} onAgentClick={onAgentClick} />
+          ))}
+        </div>
+      </div>
+
+      {/* Walking agents overlay */}
+      <WalkingAgents agents={agents} />
+
+      {/* Workflow phase indicator */}
+      <WorkflowIndicator phase={phase} />
     </div>
   )
 }

@@ -13,9 +13,10 @@ import {
 } from 'lucide-react'
 import { SolarSystem } from '@/components/planets/SolarSystem'
 import { PlanetCard } from '@/components/planets/PlanetCard'
-import { VirtualOffice, EventFeed, CommandCenter, EmployeeBar } from '@/components/office'
+import { VirtualOffice, EventFeed, CommandCenter, EmployeeBar, AgentDetailPanel } from '@/components/office'
 import { useOfficeStore } from '@/store/officeStore'
 import { PLANETS, type PlanetId, type Project, type StreamEvent } from '@/types'
+import type { AgentId } from '@/types/office'
 import { getProject, streamProject, startPreview, getPreviewStatus, stopPreview, api } from '@/lib/api'
 import { clsx } from 'clsx'
 
@@ -125,6 +126,7 @@ export default function ProjectWorkspacePage() {
   const [downloadingZip, setDownloadingZip] = useState(false)
 
   const officeStore = useOfficeStore()
+  const [selectedAgent, setSelectedAgent] = useState<AgentId | null>(null)
 
   const addTerminalLine = (line: string) => {
     setTerminalLines(prev => [...prev.slice(-100), line])
@@ -521,8 +523,8 @@ export default function ProjectWorkspacePage() {
               <div className="flex h-full overflow-hidden">
                 {/* Virtual Office main area */}
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  <VirtualOffice />
-                  <EmployeeBar />
+                  <VirtualOffice onAgentClick={(id) => setSelectedAgent(id)} />
+                  <EmployeeBar onAgentClick={(id) => setSelectedAgent(id)} />
                 </div>
                 {/* Right panels: Command Center + Event Feed */}
                 <div className="w-64 flex-shrink-0 border-l border-[#2C2420]/8 flex flex-col overflow-hidden">
@@ -557,6 +559,12 @@ export default function ProjectWorkspacePage() {
           </div>
         </main>
       </div>
+
+      {/* Agent Detail Panel */}
+      <AgentDetailPanel
+        agentId={selectedAgent}
+        onClose={() => setSelectedAgent(null)}
+      />
     </div>
   )
 }

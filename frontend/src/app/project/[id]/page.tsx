@@ -105,7 +105,7 @@ export default function ProjectWorkspacePage() {
   const [project, setProject] = useState<Project | null>(null)
   const [events, setEvents] = useState<StreamEvent[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('planets')
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('office')
   const [activePlanet, setActivePlanet] = useState<PlanetId | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
 
@@ -528,12 +528,12 @@ export default function ProjectWorkspacePage() {
                     try {
                       const { createProject } = await import('@/lib/api')
                       const result = await createProject({ idea })
-                      // Navigate to the new project's workspace
                       window.location.href = `/project/${result.project_id}`
                     } catch (e) {
                       console.error('Failed to create project:', e)
                     }
                   }}
+                  onRunDemo={() => officeStore.runDemo()}
                 />
                 {/* Main content: Left Panel + Office + Right Panel */}
                 <div className="flex flex-1 overflow-hidden">

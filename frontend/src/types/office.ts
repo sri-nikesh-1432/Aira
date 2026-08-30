@@ -44,6 +44,8 @@ export type OfficeRoom =
   | 'pluto_cabin'
   | 'dormitory'      // Where idle agents sleep
   | 'hallway'        // Walking between rooms
+  | 'integration'    // Integration workspace
+  | 'live_preview'   // Live preview area
 
 export type OfficeEvent = {
   id: string

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { SolarSystem } from '@/components/planets/SolarSystem'
 import { PlanetCard } from '@/components/planets/PlanetCard'
-import { VirtualOffice, EventFeed, CommandCenter, EmployeeBar, AgentDetailPanel } from '@/components/office'
+import { VirtualOffice, EventFeed, CommandCenter, EmployeeBar, AgentDetailPanel, OfficeCanvas, LeftPanel, RightPanel, TeamStatusBar, TopBar } from '@/components/office'
 import { useOfficeStore } from '@/store/officeStore'
 import { PLANETS, type PlanetId, type Project, type StreamEvent } from '@/types'
 import type { AgentId } from '@/types/office'
@@ -520,21 +520,26 @@ export default function ProjectWorkspacePage() {
           {/* Tab content */}
           <div className="flex-1 overflow-hidden">
             {activeTab === 'office' && (
-              <div className="flex h-full overflow-hidden">
-                {/* Virtual Office main area */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <VirtualOffice onAgentClick={(id) => setSelectedAgent(id)} />
-                  <EmployeeBar onAgentClick={(id) => setSelectedAgent(id)} />
-                </div>
-                {/* Right panels: Command Center + Event Feed */}
-                <div className="w-64 flex-shrink-0 border-l border-[#2C2420]/8 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-hidden border-b border-[#2C2420]/5">
-                    <CommandCenter />
+              <div className="flex flex-col h-full overflow-hidden bg-[#0D1117]">
+                {/* Top bar */}
+                <TopBar
+                  isRunning={isRunning}
+                  onSubmitProject={(idea) => {
+                    // Could trigger a new project or update the current one
+                    // For now, just update the office store
+                    officeStore.setProject(projectId, idea)
+                  }}
+                />
+                {/* Main content: Left Panel + Office + Right Panel */}
+                <div className="flex flex-1 overflow-hidden">
+                  <LeftPanel />
+                  <div className="flex-1 overflow-hidden">
+                    <OfficeCanvas />
                   </div>
-                  <div className="h-1/2 overflow-hidden">
-                    <EventFeed />
-                  </div>
+                  <RightPanel />
                 </div>
+                {/* Bottom team status bar */}
+                <TeamStatusBar onAgentClick={(id) => setSelectedAgent(id)} />
               </div>
             )}
 

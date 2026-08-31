@@ -549,11 +549,17 @@ export function OfficeWorld({ onAgentClick, onCabinClick }: {
     dragRef.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty }
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (dragRef.current) {
-      setView(v => ({ ...v, tx: dragRef.current!.tx + (e.clientX - dragRef.current!.x), ty: dragRef.current!.ty + (e.clientY - dragRef.current!.y) }))
+    const d = dragRef.current
+    if (d) {
+      const dx = e.clientX - d.x
+      const dy = e.clientY - d.y
+      // Capture into locals so the state updater never depends on the mutable ref
+      const baseTx = d.tx
+      const baseTy = d.ty
+      setView(v => ({ ...v, tx: baseTx + dx, ty: baseTy + dy }))
     }
   }
-  const onPointerUp = () => { dragRef.current = null }
+  const onPointerUp = (e: React.PointerEvent) => { dragRef.current = null }
 
   const worldStyle = {
     transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`,

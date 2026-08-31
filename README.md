@@ -8,6 +8,19 @@ Copyright © 2026 Sri D. All rights reserved.
 
 ---
 
+## 🏙️ The Living Software Company World
+
+The flagship experience at **`/office`** is a fully explorable, real-event-driven company world. It is **not** animated decoration — every employee movement and workflow state is driven by actual backend FastAPI **SSE events** (the backend is always the source of truth).
+
+- **World layout**: Employee Dormitory (left) → roads (center) → Main Office (center-right) → AIRA's private Villa with helipad (top) → Datta's Mansion (bottom), plus a Post Office with the project mailbox.
+- **Physical movement**: No teleporting. Employees travel along real road paths — by **bicycle** (with spinning wheels/spokes), Datta by **car** (from his mansion), AIRA by **private helicopter** (from her villa), and the Postman physically delivers each new idea into the mailbox.
+- **10 human employees + AIRA (female CEO) + Datta (male Project Manager)**: each with a unique face, hairstyle, skin tone, clothing, personality, workstation, dorm room, and bicycle.
+- **Real choreography from real events**: `active` → employees ride to their cabins and work; `completed` → they report to Datta's cabin; `reporting` → they enter Datta's cabin; `sleeping` → they return to the dorm and rest. Datta manages task decomposition, dependencies, parallel execution and **targeted error recovery** (only the responsible employee is re-awakened).
+- **Day / Afternoon / Night cycles** driven by a real IST clock & date — at night the sky darkens, streetlights, buildings, offices and vehicles light up.
+- **Fully interactive**: pan / zoom / drag the world, and click characters or rooms to inspect live status.
+
+---
+
 ## 🌌 The 10-Agent Ecosystem
 
 | Planet | Symbol | Role | Motto |
@@ -78,9 +91,15 @@ AIRA-OS/
 │       │   ├── project/       # Project workspace + new project
 │       │   └── planets/       # Solar system visualization
 │       ├── components/        # React components
-│       │   └── planets/       # SolarSystem, PlanetCard
-│       ├── lib/               # API client
-│       ├── store/             # Zustand state
+│       │   ├── planets/       # SolarSystem, PlanetCard
+│       │   └── office/        # Living company world
+│       │       ├── OfficeWorld.tsx     # Explorable world renderer
+│       │       ├── HumanSprite.tsx     # Human employee sprites
+│       │       ├── VehicleSprites.tsx  # Bicycle / car / helicopter
+│       │       ├── roster.ts           # 13-person roster (AIRA, Datta, 10 employees, Postman)
+│       │       └── TopBar / TeamStatusBar / AgentDetailPanel
+│       ├── lib/               # API client + world paths (paths.ts)
+│       ├── store/             # Zustand state (path-based motion engine)
 │       └── types/             # TypeScript types
 │
 ├── backend/                   # FastAPI + Python
@@ -111,6 +130,10 @@ AIRA-OS/
 
 ## 🎯 Key Features
 
+- **Living Company World** — Full-screen explorable office world (villa, mansion, dormitory, office, roads, mailbox, helipad) with pan / zoom / click
+- **Real Event-Driven Movement** — Employees physically travel along roads by bicycle / car / helicopter, driven purely by backend SSE events
+- **Human Employees** — 10 unique people + AIRA (CEO) + Datta (PM), each with distinct appearance & personality
+- **Day/Night Cycles** — Real IST clock, date and time-of-day render day, afternoon and night lighting
 - **Solar System UI** — Visualize planet activity in real-time with animated orbits
 - **Streaming Events** — Watch each planet work via SSE with live terminal output
 - **LangGraph Orchestration** — Sequential planet pipeline with state management

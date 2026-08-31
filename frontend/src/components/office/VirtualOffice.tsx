@@ -28,15 +28,20 @@ const AGENT_META: Record<string, {
 // ─── State descriptions ──────────────────────────────────────────────────────
 const STATE_DESCRIPTIONS: Record<AgentOfficeState, string> = {
   idle:      'Standing by',
+  waking:    'Waking up',
   walking:   'Moving between rooms',
+  travelling:'Travelling to the office',
+  arriving:  'Arriving at office',
   meeting:   'In team meeting',
   at_desk:   'At desk, ready',
   working:   'Actively working',
+  waiting:   'Waiting for dependencies',
+  blocked:   'Blocked',
   reporting: 'Reporting results',
   completed: 'Task complete',
   sleeping:   'Resting in dormitory',
+  returning_home: 'Heading home',
   error:     'Encountered error',
-  arriving:  'Arriving at office',
 }
 
 // ─── Room definitions with positions ─────────────────────────────────────────

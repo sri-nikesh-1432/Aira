@@ -2,34 +2,40 @@
 
 import { motion } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
+import { getRoster, EMPLOYEE_IDS } from './roster'
 import type { AgentId } from '@/types/office'
 
-const AGENT_META: Record<string, { name: string; symbol: string; color: string; role: string }> = {
-  mercury:  { name: 'Mercury', symbol: '☿',  color: '#90A4AE', role: 'Research' },
-  mars:     { name: 'Mars',    symbol: '♂',  color: '#EF5350', role: 'Architect' },
-  venus:    { name: 'Venus',   symbol: '♀',  color: '#FFB74D', role: 'UI/UX Designer' },
-  earth:    { name: 'Earth',   symbol: '🌍', color: '#42A5F5', role: 'Developer' },
-  neptune:  { name: 'Neptune', symbol: '♆',  color: '#5C6BC0', role: 'QA Engineer' },
-  pluto:    { name: 'Pluto',   symbol: '🪐', color: '#AB47BC', role: 'DevOps Engineer' },
-  ceres:    { name: 'Ceres',   symbol: '☄',  color: '#D4A574', role: 'Tech Writer' },
-  datta:    { name: 'Datta',   symbol: '💼', color: '#FF9800', role: 'Project Manager' },
-  aira:     { name: 'AIRA',    symbol: '☀️', color: '#FFD700', role: 'CEO' },
+function nameMeta(id: string) {
+  const h = getRoster(id as AgentId)
+  return {
+    name: h.name,
+    symbol: h.gender === 'female' ? '♀' : '♂',
+    color: h.planetColor,
+    role: h.role,
+  }
+}
+
+const AGENT_META: Record<string, { name: string; symbol: string; color: string; role: string }> = {}
+for (const id of [...EMPLOYEE_IDS, 'datta', 'aira', 'postman']) {
+  AGENT_META[id] = nameMeta(id)
 }
 
 const STATE_LABELS: Record<string, { label: string; color: string }> = {
   idle:      { label: 'Idle',      color: '#555' },
   walking:   { label: 'Moving',    color: '#2196F3' },
+  travelling:{ label: 'Travelling',color: '#10B981' },
   meeting:   { label: 'Meeting',   color: '#FF9800' },
   at_desk:   { label: 'Ready',     color: '#666' },
   working:   { label: 'Working',   color: '#4CAF50' },
   reporting: { label: 'Reporting', color: '#FF9800' },
   completed: { label: 'Done',      color: '#4CAF50' },
   sleeping:  { label: 'Sleeping',  color: '#555' },
+  returning_home: { label: 'Home', color: '#3B82F6' },
   error:     { label: 'Error',     color: '#F44336' },
   arriving:  { label: 'Arriving',  color: '#4CAF50' },
 }
 
-const DISPLAY_AGENTS = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto', 'ceres', 'datta', 'aira']
+const DISPLAY_AGENTS = [...EMPLOYEE_IDS, 'datta', 'aira']
 
 export function TeamStatusBar({ onAgentClick }: { onAgentClick?: (agent: AgentId) => void }) {
   const agents = useOfficeStore((s) => s.agents)

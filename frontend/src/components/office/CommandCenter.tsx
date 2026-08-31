@@ -33,10 +33,13 @@ const STATE_LABELS: Record<string, { label: string; color: string }> = {
 const PHASE_PROGRESS: Record<WorkflowPhase, number> = {
   idle: 0,
   project_arriving: 5,
+  aira_travelling: 8,
   aira_analyzing: 15,
+  datta_travelling: 18,
   datta_planning: 25,
   meeting_in_progress: 35,
   task_distribution: 40,
+  agents_travelling: 45,
   agents_working: 60,
   reporting: 75,
   datta_integrating: 85,

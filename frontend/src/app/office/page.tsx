@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useOfficeStore } from '@/store/officeStore'
 import { TopBar } from '@/components/office/TopBar'
-import { LeftPanel } from '@/components/office/LeftPanel'
 import { OfficeCanvas } from '@/components/office/OfficeCanvas'
-import { RightPanel } from '@/components/office/RightPanel'
 import { TeamStatusBar } from '@/components/office/TeamStatusBar'
 import { AgentDetailPanel } from '@/components/office/AgentDetailPanel'
 import type { AgentId } from '@/types/office'
@@ -27,12 +25,10 @@ export default function OfficePage() {
   const phase = useOfficeStore((s) => s.phase)
   const projectId = useOfficeStore((s) => s.projectId)
 
-  // Check API health on mount
   useEffect(() => {
     checkHealth().then(setApiOnline)
   }, [])
 
-  // Track running state from phase
   useEffect(() => {
     if (phase !== 'idle' && phase !== 'completed') {
       setIsRunning(true)
@@ -41,7 +37,6 @@ export default function OfficePage() {
     }
   }, [phase])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       cleanupRef.current?.()
@@ -61,7 +56,6 @@ export default function OfficePage() {
       const pid = result.project_id
       officeStore.setProject(pid, idea)
 
-      // Connect to SSE stream
       cleanupRef.current = streamProject(pid, (event) => {
         officeStore.processStreamEvent(event)
         if (event.event === 'completed' || event.event === 'error') {
@@ -73,7 +67,6 @@ export default function OfficePage() {
     } catch (e: any) {
       console.error('Failed to create project:', e)
       setIsRunning(false)
-      // If unauthorized, redirect to login
       if (e?.response?.status === 401) {
         router.push('/login')
       }
@@ -91,132 +84,79 @@ export default function OfficePage() {
   }, [selectedAgent])
 
   return (
-    <div className="h-screen flex flex-col bg-[#0A0E14] overflow-hidden">
-      {/* Top Bar */}
-      <TopBar
-        onSubmitProject={handleSubmitProject}
-        onRunDemo={handleRunDemo}
-        isRunning={isRunning}
-      />
+    <div className="h-screen w-full flex flex-col bg-[#04070f] overflow-hidden">
+      {/* Top Bar (minimal overlay) */}
+      <TopBar onSubmitProject={handleSubmitProject} onRunDemo={handleRunDemo} isRunning={isRunning} />
 
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel */}
-        <LeftPanel />
+      {/* Full-screen world */}
+      <div className="flex-1 overflow-hidden relative">
+        <OfficeCanvas onAgentClick={handleAgentClick} />
 
-        {/* Office Canvas (center) */}
-        <div className="flex-1 overflow-hidden relative">
-          {/* Welcome overlay when no project is active */}
-          <AnimatePresence>
-            {showWelcome && phase === 'idle' && (
+        {/* Welcome overlay */}
+        <AnimatePresence>
+          {showWelcome && phase === 'idle' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.3 } }}
+              className="absolute inset-0 z-20 flex items-center justify-center bg-[#04070f]/70 backdrop-blur-sm"
+              onClick={() => setShowWelcome(false)}
+            >
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, transition: { duration: 0.3 } }}
-                className="absolute inset-0 z-20 flex items-center justify-center bg-[#0A0E14]/80 backdrop-blur-sm"
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.92, opacity: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-center max-w-lg px-6"
               >
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-center max-w-lg px-6"
+                  className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center text-3xl"
+                  style={{
+                    background: 'linear-gradient(135deg, #FFD70015, #FF8F0015)',
+                    border: '2px solid #FFD70040',
+                    boxShadow: '0 0 40px #FFD70015',
+                  }}
+                  animate={{ boxShadow: ['0 0 40px #FFD70015', '0 0 60px #FFD70025', '0 0 40px #FFD70015'] }}
+                  transition={{ duration: 3, repeat: Infinity }}
                 >
-                  {/* AIRA Logo */}
-                  <motion.div
-                    className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center text-4xl"
-                    style={{
-                      background: 'linear-gradient(135deg, #FFD70015, #FF8F0015)',
-                      border: '2px solid #FFD70040',
-                      boxShadow: '0 0 40px #FFD70015',
-                    }}
-                    animate={{
-                      boxShadow: [
-                        '0 0 40px #FFD70015',
-                        '0 0 60px #FFD70025',
-                        '0 0 40px #FFD70015',
-                      ],
-                    }}
-                    transition={{ duration: 3, repeat: Infinity }}
-                  >
-                    ☀️
-                  </motion.div>
-
-                  <h1 className="text-2xl font-extrabold mb-2">
-                    <span className="text-gradient">AIRA</span>{' '}
-                    <span className="text-white">AI Software Company</span>
-                  </h1>
-                  <p className="text-sm text-[#556677] mb-6 leading-relaxed">
-                    Watch 10 AI agents build your product in a living virtual office.
-                    <br />
-                    Describe your project idea or run a demo to see the magic.
-                  </p>
-
-                  {/* API Status */}
-                  {apiOnline === false && (
-                    <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                      <p className="text-xs text-red-400">
-                        Backend API is offline. Start it with:{' '}
-                        <code className="bg-red-500/10 px-1.5 py-0.5 rounded text-[10px]">
-                          cd backend && uvicorn main:app --reload
-                        </code>
-                      </p>
-                    </div>
-                  )}
-
-                  {apiOnline === true && !user && (
-                    <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                      <p className="text-xs text-amber-400">
-                        Sign in to submit real projects. Demo mode works without login.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Instructions */}
-                  <div className="flex items-center justify-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#111820] border border-[#1A2332]">
-                      <span className="text-xs">⌨️</span>
-                      <span className="text-[10px] text-[#AABBCC]">
-                        Type your project idea in the input box above
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-[#445566]">or</div>
-                    <button
-                      onClick={handleRunDemo}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF980015] border border-[#FF980030] hover:bg-[#FF980025] transition-colors"
-                    >
-                      <span className="text-xs">▶️</span>
-                      <span className="text-[10px] text-[#FF9800] font-semibold">
-                        Run Demo
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Auto-dismiss hint */}
-                  <p className="text-[9px] text-[#334455] mt-6">
-                    This welcome screen will hide when a project starts
-                  </p>
+                  ☀️
                 </motion.div>
+
+                <h1 className="text-xl font-extrabold mb-2">
+                  <span className="text-[#FFD700]">AIRA</span>{' '}
+                  <span className="text-white">AI Software Company</span>
+                </h1>
+                <p className="text-xs text-[#556677] mb-5 leading-relaxed">
+                  Explore a living company world — villas, dormitories, offices, roads.
+                  <br />
+                  Watch 10 human employees build your product, driven by real events.
+                </p>
+
+                {apiOnline === false && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 mx-auto max-w-md">
+                    <p className="text-xs text-red-400">
+                      Backend API is offline. Start it with:{' '}
+                      <code className="bg-red-500/10 px-1.5 py-0.5 rounded text-[10px]">cd backend && uvicorn main:app --reload</code>
+                    </p>
+                  </div>
+                )}
+
+                <p className="text-[9px] text-[#334455] mt-4 max-w-xs mx-auto">
+                  Describe your project idea above, or drag / zoom the world by scrolling.
+                  <br />
+                  Click any employee to see their status.
+                </p>
               </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Office Canvas */}
-          <OfficeCanvas onAgentClick={handleAgentClick} />
-        </div>
-
-        {/* Right Panel */}
-        <RightPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Bottom Team Status Bar */}
+      {/* Small agent status strip (bottom) */}
       <TeamStatusBar onAgentClick={handleAgentClick} />
 
-      {/* Agent Detail Panel (slide-in) */}
-      <AgentDetailPanel
-        agentId={selectedAgent}
-        onClose={() => setSelectedAgent(null)}
-      />
+      {/* Agent detail modal (appears on click) */}
+      <AgentDetailPanel agentId={selectedAgent} onClose={() => setSelectedAgent(null)} />
     </div>
   )
 }

@@ -17,6 +17,8 @@ export type AgentId =
   | 'pluto'
   | 'ceres'
 
+export type Gender = 'female' | 'male'
+
 export type AgentOfficeState =
   | 'idle'           // Standing by
   | 'sleeping'       // In dorm, resting
@@ -24,14 +26,14 @@ export type AgentOfficeState =
   | 'walking'        // Walking between rooms
   | 'travelling'     // On bicycle/car/helicopter
   | 'arriving'       // Entering building
-  | 'meeting'        // In Datta's meeting room
+  | 'meeting'        // In meeting room
   | 'at_desk'        // In their cabin, at desk
   | 'working'        // Actively working
   | 'waiting'        // Waiting for dependencies
   | 'blocked'        // Blocked by dependency
   | 'reporting'      // Walking to Datta to report results
   | 'completed'      // Task done
-  | 'returning_home' // Leaving office, heading to dorm
+  | 'returning_home' // Leaving office, heading home
   | 'error'          // Encountered an error
 
 export type OfficeRoom =
@@ -116,6 +118,27 @@ export type WorkflowPhase =
   | 'iteration'
   | 'completed'
 
+// ─── Human employee visual identity ───────────────────────────────────────────
+export interface HumanIdentity {
+  id: AgentId
+  name: string            // Human display name
+  agentName: string       // Planet/agent name (MERCURY etc.)
+  gender: Gender
+  role: string            // Job title (Research Specialist, etc.)
+  planet: string          // Planet identity
+  planetColor: string     // Accent color for their badge/theme
+  hairColor: string
+  hairStyle: 'short' | 'long' | 'bun' | 'curly' | 'ponytail' | 'buzz' | 'bald' | 'wavy'
+  skinTone: string
+  shirtColor: string
+  pantsColor: string
+  accentColor: string     // tie/scarf detail
+  personality: string
+  dormBed: OfficeRoom
+  bicycleColor: string
+  specialNote: string
+}
+
 export interface AgentLocation {
   agent: AgentId
   room: OfficeRoom
@@ -126,6 +149,10 @@ export interface AgentLocation {
   lastQuip?: string
   x?: number
   y?: number
+  // Path-based movement
+  motionPath?: { x: number; y: number }[]
+  motionProgress?: number  // 0-1 along the path
+  transport?: 'walking' | 'bicycle' | 'car' | 'helicopter'
 }
 
 export interface OfficeState {

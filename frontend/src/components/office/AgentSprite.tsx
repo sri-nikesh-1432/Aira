@@ -31,15 +31,20 @@ const STATE_ANIMATIONS: Record<AgentOfficeState, {
   breathe?: boolean
 }> = {
   idle:      { scale: 0.85, opacity: 0.45 },
+  waking:    { scale: 0.9, opacity: 0.6, bobble: true },
+  sleeping:  { scale: 0.82, opacity: 0.4 },
   walking:   { scale: 1.0, opacity: 1, bobble: true },
+  travelling:{ scale: 1.0, opacity: 1, bobble: true },
+  arriving:  { scale: 1.1, opacity: 1, bobble: true },
   meeting:   { scale: 1.0, opacity: 1, glow: true },
   at_desk:   { scale: 1.0, opacity: 0.9 },
   working:   { scale: 1.05, opacity: 1, glow: true, breathe: true },
+  waiting:   { scale: 0.95, opacity: 0.8 },
+  blocked:   { scale: 1.0, opacity: 1, glow: true },
   reporting: { scale: 1.0, opacity: 1, bobble: true },
   completed: { scale: 1.0, opacity: 1, glow: true },
-  sleeping:  { scale: 0.82, opacity: 0.4 },
+  returning_home: { scale: 1.0, opacity: 0.9, bobble: true },
   error:     { scale: 1.0, opacity: 1, glow: true },
-  arriving:  { scale: 1.1, opacity: 1, bobble: true },
 }
 
 // ─── Working activity icons based on task ─────────────────────────────────────
@@ -64,15 +69,20 @@ function getWorkingIcon(task: string | undefined, agentId: AgentId): string {
 // ─── Status badge for agent state ────────────────────────────────────────────
 const STATUS_BADGE: Record<AgentOfficeState, { icon: string; color: string; bg: string }> = {
   idle:      { icon: '⏸', color: '#9CA3AF', bg: '#F3F4F6' },
+  waking:    { icon: '⏰', color: '#F59E0B', bg: '#FFFBEB' },
+  sleeping:  { icon: '💤', color: '#9CA3AF', bg: '#F9FAFB' },
   walking:   { icon: '🚶', color: '#3B82F6', bg: '#EFF6FF' },
+  travelling:{ icon: '🚴', color: '#10B981', bg: '#ECFDF5' },
+  arriving:  { icon: '📮', color: '#059669', bg: '#ECFDF5' },
   meeting:   { icon: '🏢', color: '#D97706', bg: '#FFFBEB' },
   at_desk:   { icon: '🪑', color: '#6B7280', bg: '#F9FAFB' },
   working:   { icon: '⚡', color: '#10B981', bg: '#ECFDF5' },
+  waiting:   { icon: '⏳', color: '#F59E0B', bg: '#FFFBEB' },
+  blocked:   { icon: '⛔', color: '#EF4444', bg: '#FEF2F2' },
   reporting: { icon: '📋', color: '#059669', bg: '#ECFDF5' },
   completed: { icon: '✅', color: '#10B981', bg: '#ECFDF5' },
-  sleeping:  { icon: '💤', color: '#9CA3AF', bg: '#F9FAFB' },
+  returning_home: { icon: '🏠', color: '#3B82F6', bg: '#EFF6FF' },
   error:     { icon: '❌', color: '#EF4444', bg: '#FEF2F2' },
-  arriving:  { icon: '📮', color: '#059669', bg: '#ECFDF5' },
 }
 
 interface AgentSpriteProps {

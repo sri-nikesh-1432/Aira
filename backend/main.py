@@ -486,6 +486,7 @@ async def get_planets():
         {"id": "neptune", "name": "Neptune", "symbol": "♆",  "role": "Quality Assurance",          "motto": "Trust is earned through testing.",                                   "color": "#4B7BE8"},
         {"id": "uranus",  "name": "Uranus",  "symbol": "♅",  "role": "Meta-Evolution",             "motto": "Intelligence is not what you know today.",                           "color": "#7EC8C8"},
         {"id": "pluto",   "name": "Pluto",   "symbol": "🪐", "role": "Deployment & Operations",    "motto": "Deployment is not the finish line. It is the beginning.",            "color": "#9B8EAE"},
+        {"id": "ceres",   "name": "Ceres",   "symbol": "☄",  "role": "Technical Documentation",    "motto": "If it isn't documented, it doesn't exist.",                       "color": "#D4A574"},
     ]}
 
 # ─── WebSocket ───────────────────────────────────────────────────────────────

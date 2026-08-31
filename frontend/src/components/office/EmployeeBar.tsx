@@ -13,8 +13,8 @@ const AGENT_META: Record<string, { name: string; symbol: string; role: string; c
   mars:     { name: 'Mars',     symbol: '♂',  role: 'Architect',   color: '#DC2626' },
   venus:    { name: 'Venus',    symbol: '♀',  role: 'UI/UX',       color: '#D97706' },
   earth:    { name: 'Earth',    symbol: '🌍', role: 'Developer',   color: '#2563EB' },
-  neptune:  { name: 'Neptune',  symbol: '♆',  role: 'QA',          color: '#4B7BE8' },
-  pluto:    { name: 'Pluto',    symbol: '🪐', role: 'DevOps',      color: '#7C3AED' },
+  neptune:  { name: 'Neptune',  symbol: '♆',  role: 'QA',          color: '#4B7BE8' },  pluto:    { name: 'Pluto',   symbol: '🪐', role: 'DevOps',      color: '#7C3AED' },
+  ceres:    { name: 'Ceres',   symbol: '☄',  role: 'Tech Writer',  color: '#D4A574' },
 }
 
 const STATE_ICONS: Record<string, string> = {
@@ -30,7 +30,7 @@ const STATE_ICONS: Record<string, string> = {
   arriving: '📮',
 }
 
-const DISPLAY_AGENTS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto']
+const DISPLAY_AGENTS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto', 'ceres']
 
 export function EmployeeBar({ onAgentClick }: { onAgentClick?: (agent: AgentId) => void }) {
   const agents = useOfficeStore((s) => s.agents)

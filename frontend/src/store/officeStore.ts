@@ -11,13 +11,13 @@ import type { StreamEvent } from '@/types'
 const ALL_AGENTS: AgentId[] = [
   'postman', 'aira', 'datta',
   'mercury', 'mars', 'venus', 'earth',
-  'jupiter', 'saturn', 'neptune', 'uranus', 'pluto',
+  'jupiter', 'saturn', 'neptune', 'uranus', 'pluto', 'ceres',
 ]
 
 const DEFAULT_LOCATIONS: Record<AgentId, { room: OfficeRoom; state: AgentOfficeState }> = {
   postman:  { room: 'reception', state: 'idle' },
-  aira:     { room: 'aira_cabin', state: 'sleeping' },
-  datta:    { room: 'datta_cabin', state: 'sleeping' },
+  aira:     { room: 'aira_villa', state: 'sleeping' },
+  datta:    { room: 'datta_mansion', state: 'sleeping' },
   mercury:  { room: 'dormitory', state: 'sleeping' },
   mars:     { room: 'dormitory', state: 'sleeping' },
   venus:    { room: 'dormitory', state: 'sleeping' },
@@ -27,6 +27,7 @@ const DEFAULT_LOCATIONS: Record<AgentId, { room: OfficeRoom; state: AgentOfficeS
   neptune:  { room: 'dormitory', state: 'sleeping' },
   uranus:   { room: 'dormitory', state: 'sleeping' },
   pluto:    { room: 'dormitory', state: 'sleeping' },
+  ceres:    { room: 'dormitory', state: 'sleeping' },
 }
 
 function createDefaultAgents(): Record<AgentId, AgentLocation> {
@@ -54,21 +55,28 @@ function makeEvent(
 const PLANET_TO_AGENT: Record<string, AgentId> = {
   mercury: 'mercury', mars: 'mars', venus: 'venus', earth: 'earth',
   neptune: 'neptune', pluto: 'pluto',
-  jupiter: 'jupiter', saturn: 'saturn', uranus: 'uranus',
+  jupiter: 'jupiter', saturn: 'saturn', uranus: 'uranus', ceres: 'ceres',
 }
 
 const PLANET_TO_ROOM: Record<string, OfficeRoom> = {
   mercury: 'mercury_cabin', mars: 'mars_cabin', venus: 'venus_cabin',
-  earth: 'earth_cabin', jupiter: 'mercury_cabin', saturn: 'mars_cabin',
-  neptune: 'neptune_cabin', uranus: 'venus_cabin', pluto: 'pluto_cabin',
+  earth: 'earth_cabin', jupiter: 'jupiter_cabin', saturn: 'saturn_cabin',
+  neptune: 'neptune_cabin', uranus: 'uranus_cabin', pluto: 'pluto_cabin', ceres: 'ceres_cabin',
 }
 
-const ALL_PLANET_AGENTS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'jupiter', 'saturn', 'neptune', 'uranus', 'pluto']
+// Map store room names to canvas room names
+const CANVAS_ROOM_MAP: Record<string, string> = {
+  dormitory: 'dormitory', reception: 'reception', hallway: 'hallway',
+  meeting_room: 'meeting_room', aira_cabin: 'aira_office', datta_cabin: 'datta_office',
+  aira_villa: 'aira_villa', datta_mansion: 'datta_mansion',
+}
+
+const ALL_PLANET_AGENTS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'jupiter', 'saturn', 'neptune', 'uranus', 'pluto', 'ceres']
 
 const PLANET_DISPLAY: Record<string, string> = {
   mercury: '☿ Mercury', mars: '♂ Mars', venus: '♀ Venus', earth: '🌍 Earth',
   neptune: '♆ Neptune', pluto: '🪐 Pluto', jupiter: '♃ Jupiter', saturn: '♄ Saturn',
-  uranus: '♅ Uranus', aira: '☀️ AIRA', datta: '💼 Datta',
+  uranus: '♅ Uranus', ceres: '☄ Ceres', aira: '☀️ AIRA', datta: '💼 Datta',
 }
 
 interface OfficeStore extends OfficeState {
@@ -212,7 +220,7 @@ export const useOfficeStore = create<OfficeStore>((set, get) => ({
     events.forEach((event) => get().processStreamEvent(event))
   },
 
-  // ── Demo mode: simulate the full workflow ──
+  // ── Demo mode: simulate the full workflow with all 10 employees ──
   runDemo: () => {
     const s = get()
     s.reset()
@@ -267,14 +275,16 @@ export const useOfficeStore = create<OfficeStore>((set, get) => ({
       const taskMap: Record<string, string> = {
         mercury: 'Researching market & technologies', mars: 'Designing system architecture',
         venus: 'Creating UI/UX designs', earth: 'Building application',
-        neptune: 'Testing & QA', pluto: 'Preparing deployment',
+        jupiter: 'Database schema design', saturn: 'AI/ML model development',
+        neptune: 'Running tests & QA', uranus: 'Security audit',
+        pluto: 'Deployment configuration', ceres: 'Writing documentation',
       }
       ALL_PLANET_AGENTS.forEach((aid, i) => {
         setTimeout(() => {
-          const room = PLANET_TO_ROOM[aid]
+          const room = PLANET_TO_ROOM[a as string] || PLANET_TO_ROOM[aid]
           if (room) {
             s.moveAgent(aid, room, 'working')
-            s.setAgentWork(aid, taskMap[aid] || 'Working', (i + 1) * 11)
+            s.setAgentWork(aid, taskMap[aid] || 'Working', (i + 1) * 9)
             s.addEvent(makeEvent(aid, 'agent_started_work', `${PLANET_DISPLAY[aid]} started: ${taskMap[aid]}`))
           }
         }, (i + 1) * 400)

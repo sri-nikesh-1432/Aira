@@ -11,6 +11,7 @@ const AGENT_META: Record<string, { name: string; symbol: string; color: string; 
   earth:    { name: 'Earth',   symbol: '🌍', color: '#42A5F5', role: 'Developer' },
   neptune:  { name: 'Neptune', symbol: '♆',  color: '#5C6BC0', role: 'QA Engineer' },
   pluto:    { name: 'Pluto',   symbol: '🪐', color: '#AB47BC', role: 'DevOps Engineer' },
+  ceres:    { name: 'Ceres',   symbol: '☄',  color: '#D4A574', role: 'Tech Writer' },
   datta:    { name: 'Datta',   symbol: '💼', color: '#FF9800', role: 'Project Manager' },
   aira:     { name: 'AIRA',    symbol: '☀️', color: '#FFD700', role: 'CEO' },
 }
@@ -28,7 +29,7 @@ const STATE_LABELS: Record<string, { label: string; color: string }> = {
   arriving:  { label: 'Arriving',  color: '#4CAF50' },
 }
 
-const DISPLAY_AGENTS = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto', 'datta', 'aira']
+const DISPLAY_AGENTS = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto', 'ceres', 'datta', 'aira']
 
 export function TeamStatusBar({ onAgentClick }: { onAgentClick?: (agent: AgentId) => void }) {
   const agents = useOfficeStore((s) => s.agents)

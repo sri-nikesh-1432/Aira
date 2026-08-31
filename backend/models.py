@@ -24,6 +24,7 @@ class Planet(str, Enum):
     NEPTUNE = "neptune"
     URANUS = "uranus"
     PLUTO = "pluto"
+    CERES = "ceres"
 
 
 class TaskStatus(str, Enum):
@@ -87,6 +88,7 @@ class AIRAState(BaseModel):
     neptune_output: Optional[Dict[str, Any]] = None
     uranus_output: Optional[Dict[str, Any]] = None
     pluto_output: Optional[Dict[str, Any]] = None
+    ceres_output: Optional[Dict[str, Any]] = None
     aira_validation: Optional[Dict[str, Any]] = None
 
     # Status tracking

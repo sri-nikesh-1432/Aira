@@ -39,9 +39,22 @@ export function TopBar({ onSubmitProject, onRunDemo, isRunning }: TopBarProps) {
   const [inputValue, setInputValue] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [time, setTime] = useState('')
+  const [date, setDate] = useState('')
+  const [dayPeriod, setDayPeriod] = useState('')
 
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+    const tick = () => {
+      const now = new Date()
+      // IST = UTC + 5:30
+      const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+      const hours = istTime.getUTCHours()
+      const timeStr = istTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' })
+      const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' })
+      const period = hours >= 5 && hours < 12 ? '☀️ Morning' : hours >= 12 && hours < 17 ? '🌤️ Afternoon' : hours >= 17 && hours < 21 ? '🌅 Evening' : '🌙 Night'
+      setTime(`${timeStr} IST`)
+      setDate(dateStr)
+      setDayPeriod(period)
+    }
     tick()
     const t = setInterval(tick, 1000)
     return () => clearInterval(t)
@@ -131,10 +144,12 @@ export function TopBar({ onSubmitProject, onRunDemo, isRunning }: TopBarProps) {
           <Play className="w-2.5 h-2.5" /> Demo
         </button>
 
-        {/* Time */}
+        {/* Time + Date */}
         <div className="text-right">
           <p className="text-[10px] text-[#888] font-mono">{time}</p>
+          <p className="text-[7px] text-[#556677]">{date}</p>
           <div className="flex items-center gap-1 justify-end mt-0.5">
+            <span className="text-[7px]">{dayPeriod}</span>
             <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50] animate-pulse" />
             <span className="text-[7px] text-[#4CAF50] font-medium">Live</span>
           </div>

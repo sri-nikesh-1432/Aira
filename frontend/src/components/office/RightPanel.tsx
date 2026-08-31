@@ -10,6 +10,7 @@ const TASK_DEFS = [
   { id: 'TASK-004', name: 'Development',    agent: 'earth' },
   { id: 'TASK-005', name: 'Testing',        agent: 'neptune' },
   { id: 'TASK-006', name: 'Deployment',     agent: 'pluto' },
+  { id: 'TASK-007', name: 'Documentation',  agent: 'ceres' },
 ]
 
 const STAGE_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ export function RightPanel() {
   const phase = useOfficeStore((s) => s.phase)
   const projectIdea = useOfficeStore((s) => s.projectIdea)
 
-  const planetAgents = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto']
+  const planetAgents = ['mercury', 'mars', 'venus', 'earth', 'jupiter', 'saturn', 'neptune', 'uranus', 'pluto', 'ceres']
   const completedCount = planetAgents.filter(id => {
     const a = (agents as Record<string, any>)[id]
     return a && (a.state === 'completed' || a.state === 'sleeping')

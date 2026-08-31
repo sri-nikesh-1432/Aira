@@ -26,11 +26,12 @@ const AGENT_DEFS: Record<string, {
   neptune:  { name: 'Neptune', symbol: '♆',  color: '#5C6BC0', role: 'QA Engineer',    hat: '#283593', shirt: '#7986CB', screenColor: '#5C6BC0', cabinLabel: 'NEPTUNE', subtitle: 'QA Engineer' },
   uranus:   { name: 'Uranus',  symbol: '♅',  color: '#7EC8C8', role: 'Meta-Evolution', hat: '#00695C', shirt: '#80CBC4', screenColor: '#7EC8C8', cabinLabel: 'URANUS', subtitle: 'Meta-Evolution' },
   pluto:    { name: 'Pluto',   symbol: '🪐', color: '#AB47BC', role: 'DevOps',         hat: '#6A1B9A', shirt: '#BA68C8', screenColor: '#AB47BC', cabinLabel: 'PLUTO', subtitle: 'DevOps Engineer' },
+  ceres:    { name: 'Ceres',   symbol: '☄',  color: '#D4A574', role: 'Tech Writer',     hat: '#8B5A2B', shirt: '#C4956A', screenColor: '#D4A574', cabinLabel: 'CERES', subtitle: 'Documentation' },
 }
 
 // The 6 main planet employees shown in the reference image's cabin row
 const MAIN_PLANETS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'neptune', 'pluto']
-const ALL_PLANETS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'jupiter', 'saturn', 'neptune', 'uranus', 'pluto']
+const ALL_PLANETS: AgentId[] = ['mercury', 'mars', 'venus', 'earth', 'jupiter', 'saturn', 'neptune', 'uranus', 'pluto', 'ceres']
 
 const STATE_COLORS: Record<AgentOfficeState, string> = {
   idle: '#555', walking: '#2196F3', meeting: '#FF9800', at_desk: '#666',
@@ -51,26 +52,33 @@ interface RoomDef {
   floorColor: string; wallColor: string; headerColor: string
 }
 
-// SVG viewBox: 1000 x 520
+// SVG viewBox: 1200 x 620
 const ROOMS: RoomDef[] = [
-  // Row 1: Executive floor
-  { id: 'reception',     x: 10,   y: 10,  w: 130,  h: 155, label: 'MAILBOX',      subtitle: '',            emoji: '📮', floorColor: '#3D2B1F', wallColor: '#1A2535', headerColor: '#1B5E20' },
-  { id: 'aira_office',   x: 150,  y: 10,  w: 200,  h: 155, label: 'AIRA',         subtitle: 'Managing Director', emoji: '☀️', floorColor: '#3D2B1F', wallColor: '#2A2510', headerColor: '#B8860B' },
-  { id: 'datta_office',  x: 360,  y: 10,  w: 200,  h: 155, label: 'DATTA',        subtitle: 'Project Manager',   emoji: '💼', floorColor: '#3D2B1F', wallColor: '#2A1F10', headerColor: '#E65100' },
-  { id: 'meeting_room',  x: 570,  y: 10,  w: 420,  h: 155, label: 'MEETING ROOM', subtitle: '',            emoji: '🏢', floorColor: '#3D2B1F', wallColor: '#151525', headerColor: '#1A237E' },
+  // Row 1: Executive floor + AIRA Villa + Datta Mansion
+  { id: 'aira_villa',    x: 10,   y: 10,  w: 120,  h: 75,  label: 'AIRA VILLA',  subtitle: 'CEO',           emoji: '🏛️', floorColor: '#2A2510', wallColor: '#1A1510', headerColor: '#B8860B' },
+  { id: 'reception',     x: 140,  y: 10,  w: 100,  h: 75,  label: 'MAILBOX',     subtitle: '',              emoji: '📮', floorColor: '#3D2B1F', wallColor: '#1A2535', headerColor: '#1B5E20' },
+  { id: 'aira_office',   x: 250,  y: 10,  w: 170,  h: 75,  label: 'AIRA',        subtitle: 'CEO Cabin',     emoji: '☀️', floorColor: '#3D2B1F', wallColor: '#2A2510', headerColor: '#B8860B' },
+  { id: 'datta_office',  x: 430,  y: 10,  w: 170,  h: 75,  label: 'DATTA',       subtitle: 'PM Cabin',      emoji: '💼', floorColor: '#3D2B1F', wallColor: '#2A1F10', headerColor: '#E65100' },
+  { id: 'meeting_room',  x: 610,  y: 10,  w: 280,  h: 75,  label: 'MEETING',     subtitle: '',              emoji: '🏢', floorColor: '#3D2B1F', wallColor: '#151525', headerColor: '#1A237E' },
+  { id: 'datta_mansion', x: 900,  y: 10,  w: 120,  h: 75,  label: 'DATTA HOME',  subtitle: 'Manager',       emoji: '🏠', floorColor: '#2A1F10', wallColor: '#1A1A10', headerColor: '#E65100' },
+  { id: 'helipad',       x: 1030, y: 10,  w: 80,   h: 75,  label: 'HELIPAD',     subtitle: '',              emoji: '🚁', floorColor: '#1A1520', wallColor: '#0A1020', headerColor: '#1565C0' },
 
-  // Row 2: Planet employee cabins (6 main)
-  { id: 'mercury_cabin', x: 10,   y: 175, w: 158,  h: 165, label: 'MERCURY',   subtitle: 'Research',       emoji: '☿',  floorColor: '#3D2B1F', wallColor: '#1A2030', headerColor: '#546E7A' },
-  { id: 'mars_cabin',    x: 178,  y: 175, w: 158,  h: 165, label: 'MARS',      subtitle: 'Architect',      emoji: '♂',  floorColor: '#3D2B1F', wallColor: '#2A1515', headerColor: '#C62828' },
-  { id: 'venus_cabin',   x: 346,  y: 175, w: 158,  h: 165, label: 'VENUS',     subtitle: 'UI/UX Designer', emoji: '♀',  floorColor: '#3D2B1F', wallColor: '#2A2515', headerColor: '#EF6C00' },
-  { id: 'earth_cabin',   x: 514,  y: 175, w: 158,  h: 165, label: 'EARTH',     subtitle: 'Developer',      emoji: '🌍', floorColor: '#3D2B1F', wallColor: '#15202A', headerColor: '#1565C0' },
-  { id: 'neptune_cabin', x: 682,  y: 175, w: 158,  h: 165, label: 'NEPTUNE',   subtitle: 'QA Engineer',    emoji: '♆',  floorColor: '#3D2B1F', wallColor: '#15152A', headerColor: '#283593' },
-  { id: 'pluto_cabin',   x: 850,  y: 175, w: 140,  h: 165, label: 'PLUTO',     subtitle: 'DevOps Engineer',emoji: '🪐', floorColor: '#3D2B1F', wallColor: '#1A152A', headerColor: '#6A1B9A' },
+  // Row 2: Planet employee cabins (8)
+  { id: 'mercury_cabin', x: 10,   y: 95,  w: 130,  h: 120, label: 'MERCURY',   subtitle: 'Research',       emoji: '☿',  floorColor: '#3D2B1F', wallColor: '#1A2030', headerColor: '#546E7A' },
+  { id: 'mars_cabin',    x: 150,  y: 95,  w: 130,  h: 120, label: 'MARS',      subtitle: 'Architect',      emoji: '♂',  floorColor: '#3D2B1F', wallColor: '#2A1515', headerColor: '#C62828' },
+  { id: 'venus_cabin',   x: 290,  y: 95,  w: 130,  h: 120, label: 'VENUS',     subtitle: 'UI/UX',          emoji: '♀',  floorColor: '#3D2B1F', wallColor: '#2A2515', headerColor: '#EF6C00' },
+  { id: 'earth_cabin',   x: 430,  y: 95,  w: 130,  h: 120, label: 'EARTH',     subtitle: 'Developer',      emoji: '🌍', floorColor: '#3D2B1F', wallColor: '#15202A', headerColor: '#1565C0' },
+  { id: 'jupiter_cabin', x: 570,  y: 95,  w: 130,  h: 120, label: 'JUPITER',   subtitle: 'Database',       emoji: '♃',  floorColor: '#3D2B1F', wallColor: '#2A2010', headerColor: '#8D6E00' },
+  { id: 'saturn_cabin',  x: 710,  y: 95,  w: 130,  h: 120, label: 'SATURN',    subtitle: 'AI/ML',          emoji: '♄',  floorColor: '#3D2B1F', wallColor: '#1A1510', headerColor: '#5D4037' },
+  { id: 'neptune_cabin', x: 850,  y: 95,  w: 130,  h: 120, label: 'NEPTUNE',   subtitle: 'QA',             emoji: '♆',  floorColor: '#3D2B1F', wallColor: '#15152A', headerColor: '#283593' },
+  { id: 'pluto_cabin',   x: 990,  y: 95,  w: 120,  h: 120, label: 'PLUTO',     subtitle: 'DevOps',         emoji: '🪐', floorColor: '#3D2B1F', wallColor: '#1A152A', headerColor: '#6A1B9A' },
 
-  // Row 3: Support floor
-  { id: 'dormitory',     x: 10,   y: 350, w: 340,  h: 160, label: 'DORMITORY', subtitle: '',              emoji: '🛏️', floorColor: '#2A2520', wallColor: '#151520', headerColor: '#37474F' },
-  { id: 'integration',   x: 360,  y: 350, w: 310,  h: 160, label: 'INTEGRATION PROJECT', subtitle: '',     emoji: '🔗', floorColor: '#3D2B1F', wallColor: '#0A200A', headerColor: '#2E7D32' },
-  { id: 'live_preview',  x: 680,  y: 350, w: 310,  h: 160, label: 'LIVE PREVIEW', subtitle: '',             emoji: '🌐', floorColor: '#1A1520', wallColor: '#0A1520', headerColor: '#1565C0' },
+  // Row 3: More cabins + Support
+  { id: 'uranus_cabin',  x: 10,   y: 225, w: 130,  h: 100, label: 'URANUS',    subtitle: 'Security',       emoji: '♅',  floorColor: '#3D2B1F', wallColor: '#151A1A', headerColor: '#00695C' },
+  { id: 'ceres_cabin',   x: 150,  y: 225, w: 130,  h: 100, label: 'CERES',     subtitle: 'Documentation',  emoji: '☄',  floorColor: '#3D2B1F', wallColor: '#2A2015', headerColor: '#8B5A2B' },
+  { id: 'integration',   x: 290,  y: 225, w: 250,  h: 100, label: 'INTEGRATION', subtitle: '',              emoji: '🔗', floorColor: '#3D2B1F', wallColor: '#0A200A', headerColor: '#2E7D32' },
+  { id: 'live_preview',  x: 550,  y: 225, w: 250,  h: 100, label: 'PREVIEW',   subtitle: '',              emoji: '🌐', floorColor: '#1A1520', wallColor: '#0A1520', headerColor: '#1565C0' },
+  { id: 'dormitory',     x: 810,  y: 225, w: 300,  h: 100, label: 'DORMITORY', subtitle: '',              emoji: '🛏️', floorColor: '#2A2520', wallColor: '#151520', headerColor: '#37474F' },
 ]
 
 // Map store room → canvas room
@@ -86,10 +94,10 @@ function normalizeRoom(room: string): string {
 
 // Agent default rooms
 const AGENT_DEFAULT_ROOM: Record<string, string> = {
-  postman: 'reception', aira: 'aira_office', datta: 'datta_office',
+  postman: 'reception', aira: 'aira_villa', datta: 'datta_mansion',
   mercury: 'mercury_cabin', mars: 'mars_cabin', venus: 'venus_cabin',
-  earth: 'earth_cabin', jupiter: 'mercury_cabin', saturn: 'mars_cabin',
-  neptune: 'neptune_cabin', uranus: 'venus_cabin', pluto: 'pluto_cabin',
+  earth: 'earth_cabin', jupiter: 'jupiter_cabin', saturn: 'saturn_cabin',
+  neptune: 'neptune_cabin', uranus: 'uranus_cabin', pluto: 'pluto_cabin', ceres: 'ceres_cabin',
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

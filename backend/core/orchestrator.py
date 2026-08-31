@@ -11,11 +11,11 @@ from langgraph.graph import StateGraph, END
 from models import AIRAState, Planet, PlanetStatus
 from llm_utils import llm_call, llm_json_call
 from planets import run_mercury, run_mars, run_venus, run_earth, run_pluto
-from planets import run_jupiter, run_saturn, run_neptune, run_uranus
+from planets import run_jupiter, run_saturn, run_neptune, run_uranus, run_ceres
 from core.deterministic import (
     deterministic_mercury, deterministic_mars, deterministic_venus,
     deterministic_jupiter, deterministic_saturn, deterministic_neptune,
-    deterministic_uranus, deterministic_pluto, deterministic_intent,
+    deterministic_uranus, deterministic_pluto, deterministic_ceres, deterministic_intent,
     deterministic_validation,
 )
 from file_utils import sanitize_project_name
@@ -40,16 +40,17 @@ You are the Central Intelligence Layer of AIRA OS.
 Personality: Calm, wise, never emotional, natural leader, rarely jokes.
 When AIRA jokes, everyone pauses.
 
-You coordinate 9 specialized AI planets:
+You coordinate 10 specialized AI employees:
 - ☿ Mercury: Research & Intelligence
 - ♂ Mars: Architecture & Planning
 - ♀ Venus: UI/UX & Experience
 - 🌍 Earth: Development & Engineering
-- ♃ Jupiter: Business Strategy
-- ♄ Saturn: Documentation
+- ♃ Jupiter: Database / Data Engineering
+- ♄ Saturn: AI/ML Engineering
 - ♆ Neptune: Quality Assurance
-- ♅ Uranus: Meta-Evolution
+- ♅ Uranus: Security Engineering
 - 🪐 Pluto: Deployment & Operations
+- ☄ Ceres: Technical Documentation
 
 Your motto: "I don't solve problems alone. I orchestrate intelligence." """
 
@@ -129,6 +130,10 @@ async def _wrapped_uranus(state: AIRAState) -> AIRAState:
 async def _wrapped_pluto(state: AIRAState) -> AIRAState:
     """Pluto: LLM first → deterministic fallback. No AIRA needed."""
     return await _run_planet_independent("pluto", run_pluto, deterministic_pluto, state)
+
+async def _wrapped_ceres(state: AIRAState) -> AIRAState:
+    """Ceres: LLM first → deterministic fallback. No AIRA needed."""
+    return await _run_planet_independent("ceres", run_ceres, deterministic_ceres, state)
 
 
 # ─── Deterministic fallback for Earth (generates actual code) ─────────────────
@@ -265,6 +270,7 @@ async def aira_validate_output(state: AIRAState) -> AIRAState:
             "neptune": state.neptune_output,
             "uranus":  state.uranus_output,
             "pluto":   state.pluto_output,
+            "ceres":   state.ceres_output,
         },
         "output_directory": state.output_dir,
         "messages": state.messages,
@@ -304,6 +310,7 @@ def build_aira_graph() -> StateGraph:
     graph.add_node("neptune",   _wrapped_neptune)
     graph.add_node("uranus",    _wrapped_uranus)
     graph.add_node("pluto",     _wrapped_pluto)
+    graph.add_node("ceres",     _wrapped_ceres)
     graph.add_node("validate",  aira_validate_output)
 
     graph.set_entry_point("understand")
@@ -316,7 +323,8 @@ def build_aira_graph() -> StateGraph:
     graph.add_edge("saturn",     "neptune")
     graph.add_edge("neptune",    "uranus")
     graph.add_edge("uranus",     "pluto")
-    graph.add_edge("pluto",      "validate")
+    graph.add_edge("pluto",      "ceres")
+    graph.add_edge("ceres",      "validate")
     graph.add_edge("validate",   END)
 
     return graph.compile()
@@ -364,7 +372,7 @@ async def run_aira_pipeline(
         "understand": "aira", "mercury": "mercury", "mars": "mars",
         "venus": "venus", "earth": "earth", "jupiter": "jupiter",
         "saturn": "saturn", "neptune": "neptune", "uranus": "uranus",
-        "pluto": "pluto", "validate": "aira",
+        "pluto": "pluto", "ceres": "ceres", "validate": "aira",
     }
 
     last_state = initial_state

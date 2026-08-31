@@ -15,24 +15,32 @@ export type AgentId =
   | 'neptune'
   | 'uranus'
   | 'pluto'
+  | 'ceres'
 
 export type AgentOfficeState =
-  | 'idle'           // Sleeping in dorm
-  | 'walking'        // Moving between rooms
+  | 'idle'           // Standing by
+  | 'sleeping'       // In dorm, resting
+  | 'waking'         // Getting out of bed
+  | 'walking'        // Walking between rooms
+  | 'travelling'     // On bicycle/car/helicopter
+  | 'arriving'       // Entering building
   | 'meeting'        // In Datta's meeting room
   | 'at_desk'        // In their cabin, at desk
-  | 'working'        // Actively working (coding, researching, etc.)
+  | 'working'        // Actively working
+  | 'waiting'        // Waiting for dependencies
+  | 'blocked'        // Blocked by dependency
   | 'reporting'      // Walking to Datta to report results
-  | 'completed'      // Task done, heading to dorm
-  | 'sleeping'       // In dorm, idle
+  | 'completed'      // Task done
+  | 'returning_home' // Leaving office, heading to dorm
   | 'error'          // Encountered an error
-  | 'arriving'       // Postman entering / new project
 
 export type OfficeRoom =
+  | 'aira_villa'     // AIRA's private villa
+  | 'datta_mansion'  // Datta's mansion
   | 'reception'      // Postman entrance + mailbox
-  | 'aira_cabin'     // AIRA's cabin (top center)
-  | 'datta_cabin'    // Datta's cabin (center)
-  | 'meeting_room'   // Meeting room (center top)
+  | 'aira_cabin'     // AIRA's cabin in office
+  | 'datta_cabin'    // Datta's cabin in office
+  | 'meeting_room'   // Meeting room
   | 'mercury_cabin'
   | 'mars_cabin'
   | 'venus_cabin'
@@ -42,10 +50,14 @@ export type OfficeRoom =
   | 'neptune_cabin'
   | 'uranus_cabin'
   | 'pluto_cabin'
+  | 'ceres_cabin'
   | 'dormitory'      // Where idle agents sleep
   | 'hallway'        // Walking between rooms
+  | 'road'           // On the road
+  | 'bicycle_parking'// Bicycle parking area
   | 'integration'    // Integration workspace
   | 'live_preview'   // Live preview area
+  | 'helipad'        // AIRA's helicopter pad
 
 export type OfficeEvent = {
   id: string
@@ -54,8 +66,15 @@ export type OfficeEvent = {
   event_type:
     | 'project_arrived'
     | 'aira_received'
+    | 'aira_travelling'
+    | 'aira_arrived'
     | 'aira_to_datta'
+    | 'datta_travelling'
+    | 'datta_arrived'
     | 'meeting_called'
+    | 'agent_called'
+    | 'agent_waking'
+    | 'agent_travelling'
     | 'agent_entered_meeting'
     | 'project_explained'
     | 'tasks_assigned'
@@ -65,6 +84,7 @@ export type OfficeEvent = {
     | 'agent_completed'
     | 'agent_reporting'
     | 'agent_reported'
+    | 'agent_returning_home'
     | 'agent_to_dorm'
     | 'agent_sleeping'
     | 'agent_woken'
@@ -82,10 +102,13 @@ export type OfficeEvent = {
 export type WorkflowPhase =
   | 'idle'
   | 'project_arriving'
+  | 'aira_travelling'
   | 'aira_analyzing'
+  | 'datta_travelling'
   | 'datta_planning'
   | 'meeting_in_progress'
   | 'task_distribution'
+  | 'agents_travelling'
   | 'agents_working'
   | 'reporting'
   | 'datta_integrating'
@@ -101,7 +124,7 @@ export interface AgentLocation {
   progress?: number
   lastMessage?: string
   lastQuip?: string
-  x?: number  // Pixel position for animation
+  x?: number
   y?: number
 }
 

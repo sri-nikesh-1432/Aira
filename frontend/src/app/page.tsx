@@ -188,16 +188,16 @@ export default function HomePage() {
           </p>
 
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href={user ? '/project/new' : '/register'}
+            <Link href="/office"
               className="btn-primary inline-flex items-center gap-2.5 text-sm py-3.5 px-7">
               <Brain className="w-4 h-4" />
-              {user ? 'Start Building' : 'Get Started'}
+              Enter Virtual Office
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link href="/planets"
+            <Link href={user ? '/project/new' : '/register'}
               className="btn-secondary inline-flex items-center gap-2 text-sm py-3.5 px-7">
-              <Globe className="w-4 h-4" />
-              View Planets
+              <Sparkles className="w-4 h-4" />
+              {user ? 'Start Building' : 'Get Started'}
             </Link>
           </div>
         </motion.div>
